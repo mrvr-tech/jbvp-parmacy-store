@@ -31,7 +31,7 @@
         env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
         env.VITE_SUPABASE_ANON_KEY ||
         (storage && storage.getItem('SUPABASE_ANON_KEY')) ||
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder_key';
+        'sb_publishable_-bdULoXJ2P3KVMk5DPHZXw_S7sPL9JP';
 
     const DEFAULT_EMAIL_DOMAIN = env.DEFAULT_EMAIL_DOMAIN || 'pharmacy.com';
 
