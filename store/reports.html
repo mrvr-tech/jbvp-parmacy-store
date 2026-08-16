@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Pharmacy Store Management</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+                <li><a href="inventory.html" class="nav-link">Inventory</a></li>
+                <li><a href="add-item.html" class="nav-link">Add Item</a></li>
+                <li><a href="approve-requests.html" class="nav-link">Approve Requests</a></li>
+                <li><a href="expiry-alerts.html" class="nav-link">Expiry Alerts</a></li>
+                <li><a href="reports.html" class="nav-link active">Reports</a></li>
+                <li><a href="user-management.html" class="nav-link">Users & Labs</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Store Admin: Store Keeper
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">📑 Reports Dashboard</h2>
+            <p class="section-intro">
+                Comprehensive purchase history, laboratory consumption audit trail, and real-time inventory balances.
+            </p>
+
+            <!-- Search Bar -->
+            <div style="margin-bottom: 20px;">
+                <form id="reportSearchForm" onsubmit="event.preventDefault();" style="display: flex; gap: 10px; max-width: 600px; flex-wrap: wrap; align-items: center;">
+                    <input 
+                        type="text" 
+                        id="reportSearchInput"
+                        placeholder="🔍 Search items in reports..." 
+                        style="flex: 1; padding: 12px 14px; border: 1px solid #d9e2db; border-radius: 8px; font-size: 14px; min-width: 250px;"
+                    >
+                    <button type="submit" class="btn" style="white-space: nowrap;">Search</button>
+                    <button type="button" class="btn btn-secondary" style="white-space: nowrap;" onclick="document.getElementById('reportSearchInput').value=''; ReportsModule.applySearch();">✕ Clear</button>
+                </form>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>ℹ️ Information:</strong> Export reports in PDF or Excel format using the buttons below.
+            </div>
+
+            <!-- 1️⃣ STORE PURCHASE REPORT -->
+            <div class="report-section">
+                <h3 style="color: var(--brand-deep); margin-bottom: 15px;">🛒 Store Purchase Report</h3>
+                <p style="color: #666; margin-bottom: 15px;">Complete record of all items added to store inventory.</p>
+                
+                <div class="export-buttons" style="margin-bottom: 18px;">
+                    <button class="btn" onclick="ReportsModule.exportToPdf('purchase');">📄 Export as PDF</button>
+                    <button class="btn btn-secondary" onclick="ReportsModule.exportToExcel('purchase');">📊 Export as Excel</button>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sr.No</th>
+                            <th>Item Name</th>
+                            <th>Package</th>
+                            <th>Quantity</th>
+                            <th>Price (₹)</th>
+                            <th>Tax (₹)</th>
+                            <th>Bill No</th>
+                            <th>Date</th>
+                            <th>Expiry Date</th>
+                            <th>Vendor Name</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchaseReportTableBody">
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                ⏳ Loading store purchase report...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 2️⃣ LAB USAGE REPORT -->
+            <div class="report-section">
+                <h3 style="color: var(--brand-deep); margin-bottom: 15px;">🔬 Lab Usage Report</h3>
+                <p style="color: #666; margin-bottom: 15px;">Track which labs have requested and received items from inventory.</p>
+                
+                <div class="export-buttons" style="margin-bottom: 18px;">
+                    <button class="btn" onclick="ReportsModule.exportToPdf('lab_usage');">📄 Export as PDF</button>
+                    <button class="btn btn-secondary" onclick="ReportsModule.exportToExcel('lab_usage');">📊 Export as Excel</button>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lab Name</th>
+                            <th>Item Name</th>
+                            <th>Package</th>
+                            <th>Requested Qty</th>
+                            <th>Approved Qty</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="labUsageTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                ⏳ Loading lab usage report...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 3️⃣ STOCK REPORT -->
+            <div class="report-section">
+                <h3 style="color: var(--brand-deep); margin-bottom: 15px;">📦 Current Stock Report</h3>
+                <p style="color: #666; margin-bottom: 15px;">Real-time inventory status showing total, used, and available quantities.</p>
+                
+                <div class="export-buttons" style="margin-bottom: 18px;">
+                    <button class="btn" onclick="ReportsModule.exportToPdf('stock');">📄 Export as PDF</button>
+                    <button class="btn btn-secondary" onclick="ReportsModule.exportToExcel('stock');">📊 Export as Excel</button>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Package</th>
+                            <th>Total Qty</th>
+                            <th>Used Qty</th>
+                            <th>Available Qty</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockReportTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                ⏳ Loading current stock report...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f9fbf9; border: 1px solid var(--line); border-radius: var(--radius-lg);">
+                <p id="reportsTimestamp" style="color: #666; margin-bottom: 10px;">📅 Last Updated: --</p>
+                <a href="dashboard.html" class="btn">← Back to Dashboard</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/reports.js"></script>
+    <script>
+        Auth.requireAuth('store').then(userAuth => {
+            if (userAuth) {
+                ReportsModule.init();
+            }
+        });
+    </script>
+</body>
+</html>

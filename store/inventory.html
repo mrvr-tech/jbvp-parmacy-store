@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Inventory - Store Keeper</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+                <li><a href="inventory.html" class="nav-link active">Inventory</a></li>
+                <li><a href="add-item.html" class="nav-link">Add Item</a></li>
+                <li><a href="approve-requests.html" class="nav-link">Approve Requests</a></li>
+                <li><a href="expiry-alerts.html" class="nav-link">Expiry Alerts</a></li>
+                <li><a href="reports.html" class="nav-link">Reports</a></li>
+                <li><a href="user-management.html" class="nav-link">Users & Labs</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Store Admin: Store Keeper
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">Manage Inventory</h2>
+
+            <!-- Error Banner -->
+            <div id="inventoryError" class="alert alert-danger" style="display: none; margin-bottom: 15px;"></div>
+
+            <!-- Top Actions and Filter Bar -->
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <a href="add-item.html" class="btn">Add New Item</a>
+
+                <form id="filterForm" onsubmit="event.preventDefault();" style="display: flex; gap: 10px; flex: 1; min-width: 250px; flex-wrap: wrap;">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        name="q"
+                        placeholder="Search items by name, vendor, or bill..."
+                        style="flex: 1; padding: 10px 14px; border: 1px solid #d9e2db; border-radius: 8px; font-size: 14px; min-width: 200px;"
+                    >
+                    <select
+                        id="categorySelect"
+                        name="category"
+                        style="padding: 10px 14px; border: 1px solid #d9e2db; border-radius: 8px; font-size: 14px; min-width: 180px;"
+                    >
+                        <option value="">All Categories</option>
+                        <option value="chemicals">Chemicals</option>
+                        <option value="glassware">Glassware</option>
+                        <option value="instruments">Instruments</option>
+                        <option value="computer">Computer Store</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <button type="submit" class="btn" style="white-space: nowrap;">Apply</button>
+                    <button type="button" class="btn btn-secondary" style="white-space: nowrap;" onclick="document.getElementById('searchInput').value=''; document.getElementById('categorySelect').value=''; InventoryModule.applyFilters();">Clear</button>
+                </form>
+            </div>
+
+            <!-- Filtered Info Banner -->
+            <div id="filterInfo" style="display: none;"></div>
+
+            <!-- Inventory Items Table -->
+            <div class="report-section">
+                <h3 style="color: var(--brand-deep); margin-bottom: 15px;">All Items in Stock</h3>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sr.No</th>
+                            <th>Category</th>
+                            <th>Item Name</th>
+                            <th>Package</th>
+                            <th>Quantity</th>
+                            <th>Price (Rs.)</th>
+                            <th>Bill No</th>
+                            <th>Date</th>
+                            <th>Expiry Date</th>
+                            <th>Vendor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="11" style="text-align: center; padding: 30px; color: var(--text-soft);">
+                                <div style="font-size: 1.5rem; margin-bottom: 8px;">⏳</div>
+                                <strong>Loading inventory data from Supabase...</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/inventory.js"></script>
+    <script>
+        // Require Store Keeper Authentication before loading inventory
+        Auth.requireAuth('store').then(userAuth => {
+            if (userAuth) {
+                InventoryModule.init();
+            }
+        });
+    </script>
+</body>
+</html>

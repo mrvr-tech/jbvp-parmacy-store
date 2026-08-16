@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Item - Lab Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2 id="labHeaderTitle">📝 Lab Portal</h2>
+            <p>Submit Requisition to Pharmacy Store Keeper</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">📦 Available Items</a></li>
+                <li><a href="available-items.html" class="nav-link">📋 Catalog View</a></li>
+                <li><a href="request-item.html" class="nav-link active">📝 Request Item</a></li>
+                <li><a href="request-history.html" class="nav-link">📋 Request History</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Lab User: Lab 1
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">📝 Request Item from Store</h2>
+            <p class="section-intro">
+                Submit an official store requisition. Upon store keeper approval, items will be issued to your lab.
+            </p>
+
+            <!-- Feedback Alert Banners -->
+            <div id="requestError" class="alert alert-danger" style="display: none; margin-bottom: 20px;"></div>
+            <div id="requestSuccess" class="alert alert-success" style="display: none; margin-bottom: 20px;"></div>
+
+            <div class="form-container" style="margin-bottom: 28px;">
+                <form id="requestItemForm">
+                    <div class="form-group">
+                        <label for="item_id">Select Item *</label>
+                        <select id="item_id" name="item_id" required>
+                            <option value="">⏳ Loading stock items from store...</option>
+                        </select>
+                        <div id="itemStockHint" style="display: none; margin-top: 6px; font-size: 13px; color: var(--brand-deep);"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quantity">Quantity (units) *</label>
+                        <input type="number" id="quantity" name="quantity" placeholder="Enter quantity needed" required min="1" value="1">
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 10px;">
+                        <button type="submit" class="btn">✓ Submit Request</button>
+                        <a href="dashboard.html" class="btn btn-secondary">← Back to Dashboard</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Instructions Box -->
+            <div style="background: #f4f8f5; padding: 22px; border-radius: var(--radius-lg); border-left: 4px solid var(--brand); border: 1px solid #dce8de;">
+                <h3 style="color: var(--brand-deep); margin-bottom: 14px;">ℹ️ How to Request Items</h3>
+                <ol style="line-height: 1.8; color: #526257; margin-left: 20px;">
+                    <li>Select an item from the dropdown list.</li>
+                    <li>Enter the required units according to your practical/batch requirements.</li>
+                    <li>Click <strong>Submit Request</strong> to send the requisition to the Store Keeper.</li>
+                    <li>The Store Keeper validates current store stock and approves the request.</li>
+                    <li>Track status and view approved quantities in your <strong>Request History</strong>.</li>
+                </ol>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System - Lab Portal
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/lab-request-item.js"></script>
+    <script>
+        Auth.requireAuth('lab').then(userAuth => {
+            if (userAuth) {
+                LabRequestItemModule.init(userAuth);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approve Lab Requests - Store Keeper</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+                <li><a href="inventory.html" class="nav-link">Inventory</a></li>
+                <li><a href="add-item.html" class="nav-link">Add Item</a></li>
+                <li><a href="approve-requests.html" class="nav-link active">Approve Requests</a></li>
+                <li><a href="expiry-alerts.html" class="nav-link">Expiry Alerts</a></li>
+                <li><a href="reports.html" class="nav-link">Reports</a></li>
+                <li><a href="user-management.html" class="nav-link">Users & Labs</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Store Admin: Store Keeper
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">🔬 Lab Requests Management</h2>
+            <p class="section-intro">
+                Review incoming laboratory requisitions, verify stock availability, and issue stock approvals.
+            </p>
+
+            <!-- Feedback Alert Banners -->
+            <div id="actionSuccess" class="alert alert-success" style="display: none; margin-bottom: 20px;"></div>
+            <div id="actionError" class="alert alert-danger" style="display: none; margin-bottom: 20px;"></div>
+
+            <!-- PENDING REQUESTS -->
+            <div class="report-section">
+                <h3 id="pendingCountHeader" style="color: #c84e00; margin-bottom: 15px;">⏳ Pending Requests</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lab Name</th>
+                            <th>Item</th>
+                            <th>Requested Qty</th>
+                            <th>Available Qty</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                ⏳ Loading pending requisitions from Supabase...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- APPROVED REQUESTS -->
+            <div class="report-section">
+                <h3 id="approvedCountHeader" style="color: #155724; margin-bottom: 15px;">✓ Approved Requests</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lab Name</th>
+                            <th>Item</th>
+                            <th>Requested Qty</th>
+                            <th>Approved Qty</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="approvedTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-soft);">
+                                ⏳ Loading approved request history...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- REJECTED REQUESTS -->
+            <div id="rejectedSection" class="report-section" style="display: none;">
+                <h3 id="rejectedCountHeader" style="color: #a4332b; margin-bottom: 15px;">✗ Rejected Requests</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lab Name</th>
+                            <th>Item</th>
+                            <th>Requested Qty</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rejectedTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/approve-requests.js"></script>
+    <script>
+        Auth.requireAuth('store').then(userAuth => {
+            if (userAuth) {
+                ApproveRequestsModule.init();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Dashboard - Lab Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2 id="labHeaderTitle">🔬 Lab Portal Dashboard</h2>
+            <p>Pharmacy Store - Live Item Request & Stock Portal</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link active">📦 Available Items</a></li>
+                <li><a href="available-items.html" class="nav-link">📋 Catalog View</a></li>
+                <li><a href="request-item.html" class="nav-link">📝 Request Item</a></li>
+                <li><a href="request-history.html" class="nav-link">📋 Request History</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Lab User: Lab 1
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">📦 Available Items in Store</h2>
+            <p class="section-intro">
+                Browse available laboratory chemicals, glassware, and instruments currently in stock.
+            </p>
+
+            <!-- Search Bar -->
+            <div style="margin-bottom: 25px;">
+                <form id="labSearchForm" onsubmit="event.preventDefault();" style="display: flex; gap: 10px; max-width: 600px; flex-wrap: wrap; align-items: center;">
+                    <input 
+                        type="text" 
+                        id="labSearchInput"
+                        placeholder="🔍 Search items by name..." 
+                        style="flex: 1; padding: 12px 14px; border: 1px solid #d9e2db; border-radius: 8px; font-size: 14px; min-width: 250px;"
+                    >
+                    <button type="submit" class="btn" style="white-space: nowrap;">Search</button>
+                    <button type="button" class="btn btn-secondary" style="white-space: nowrap;" onclick="document.getElementById('labSearchInput').value=''; LabDashboardModule.applySearch();">✕ Clear</button>
+                </form>
+            </div>
+
+            <!-- Items Cards Grid -->
+            <div class="items-grid">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-soft);">
+                    <div style="font-size: 1.8rem; margin-bottom: 8px;">⏳</div>
+                    <strong>Loading available items from central store...</strong>
+                </div>
+            </div>
+
+            <!-- Bottom Requisition Callout -->
+            <div style="text-align: center; margin-top: 30px; padding: 24px; background: #f9fbf9; border: 1px solid var(--line); border-radius: var(--radius-lg);">
+                <p style="color: #666; margin-bottom: 15px; font-size: 1.05rem;">Need an item for practicals or research? Submit a requisition below.</p>
+                <a href="request-item.html" class="btn">📝 Submit New Requisition</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System - Lab Portal
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/lab-dashboard.js"></script>
+    <script>
+        Auth.requireAuth('lab').then(userAuth => {
+            if (userAuth) {
+                LabDashboardModule.init(userAuth);
+            }
+        });
+    </script>
+</body>
+</html>

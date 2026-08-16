@@ -1,6 +1,0 @@
-Django
- gunicorn
- whitenoise
- djangorestframework
- djangorestframework-simplejwt
- django-cors-headers

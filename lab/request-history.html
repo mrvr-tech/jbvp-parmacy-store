@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request History - Lab Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2 id="labHeaderTitle">📋 Lab Portal</h2>
+            <p>Track Requisitions & Issued Stock</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">📦 Available Items</a></li>
+                <li><a href="available-items.html" class="nav-link">📋 Catalog View</a></li>
+                <li><a href="request-item.html" class="nav-link">📝 Request Item</a></li>
+                <li><a href="request-history.html" class="nav-link active">📋 Request History</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Lab User: Lab 1
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">📋 Your Request History</h2>
+            <p class="section-intro">
+                Private audit log of all store requisitions placed by your laboratory.
+            </p>
+
+            <!-- Requisition Summary Stats -->
+            <div class="stats-container" style="margin-bottom: 28px;">
+                <div class="stat-card">
+                    <p class="stat-label">📝 Total Requests</p>
+                    <h3 class="stat-value" id="historyTotalCount">...</h3>
+                    <span class="stat-meta">Lifetime submissions</span>
+                </div>
+
+                <div class="stat-card">
+                    <p class="stat-label">✓ Approved</p>
+                    <h3 class="stat-value" id="historyApprovedCount" style="color: #1d6c36;">...</h3>
+                    <span class="stat-meta">Stock received</span>
+                </div>
+
+                <div class="stat-card is-warning">
+                    <p class="stat-label">⏳ Pending</p>
+                    <h3 class="stat-value" id="historyPendingCount" style="color: #8c6510;">...</h3>
+                    <span class="stat-meta">Awaiting review</span>
+                </div>
+
+                <div class="stat-card is-danger">
+                    <p class="stat-label">✗ Rejected</p>
+                    <h3 class="stat-value" id="historyRejectedCount" style="color: #a4332b;">...</h3>
+                    <span class="stat-meta">Stock unavailable</span>
+                </div>
+            </div>
+
+            <!-- Requisition History Table -->
+            <div class="report-section">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sr.No</th>
+                            <th>Item Name</th>
+                            <th>Requested Qty</th>
+                            <th>Approved Qty</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                ⏳ Loading requisition history...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="request-item.html" class="btn">📝 Make New Request</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System - Lab Portal
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/lab-request-history.js"></script>
+    <script>
+        Auth.requireAuth('lab').then(userAuth => {
+            if (userAuth) {
+                LabRequestHistoryModule.init(userAuth);
+            }
+        });
+    </script>
+</body>
+</html>

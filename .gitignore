@@ -1,0 +1,41 @@
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Dependencies & package managers
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build & runtime artifacts
+dist/
+build/
+*.log
+*.sqlite3
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Operating System temporary files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Antigravity & AI Assistant metadata
+.antigravity/
+.gemini/

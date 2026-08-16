@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expiry Alerts - Pharmacy Store</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+                <li><a href="inventory.html" class="nav-link">Inventory</a></li>
+                <li><a href="add-item.html" class="nav-link">Add Item</a></li>
+                <li><a href="approve-requests.html" class="nav-link">Approve Requests</a></li>
+                <li><a href="expiry-alerts.html" class="nav-link active">Expiry Alerts</a></li>
+                <li><a href="reports.html" class="nav-link">Reports</a></li>
+                <li><a href="user-management.html" class="nav-link">Users & Labs</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Store Admin: Store Keeper
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">⚠️ Medicine Expiry Alert System</h2>
+            <p class="section-intro">
+                Regulatory drug expiry tracking to prevent dispensing or using outdated chemical substances.
+            </p>
+
+            <!-- Error Banner -->
+            <div id="expiryAlertError" class="alert alert-danger" style="display: none; margin-bottom: 20px;"></div>
+
+            <!-- EXPIRED MEDICINES SECTION -->
+            <div style="margin-bottom: 30px;">
+                <h3 style="color: #d9534f; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🚨</span>
+                    EXPIRED MEDICINES - IMMEDIATE ACTION REQUIRED
+                    <span id="expiredBadgeCount" style="background-color: #d9534f; color: white; padding: 5px 10px; border-radius: 20px; font-size: 14px; font-weight: bold;">...</span>
+                </h3>
+                
+                <div style="background-color: #f8d7da; border-left: 5px solid #d9534f; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="color: #721c24; margin: 0;">
+                        <strong>⚠️ Critical Alert:</strong> The following medicines have already expired and must be removed from inventory and destroyed according to pharmaceutical disposal guidelines.
+                    </p>
+                </div>
+                
+                <div class="report-section" style="padding: 0; overflow: hidden;">
+                    <table>
+                        <thead>
+                            <tr style="background-color: #d9534f; color: white;">
+                                <th>Sr.No</th>
+                                <th>Item Name</th>
+                                <th>Package</th>
+                                <th>Quantity</th>
+                                <th>Expiry Date</th>
+                                <th>Bill No</th>
+                                <th>Vendor Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expiredTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                    ⏳ Checking expired medicines...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="background-color: #f5c6cb; padding: 14px 18px; border-radius: 8px; margin-top: 15px;">
+                    <p style="color: #721c24; margin: 0; font-size: 13px; line-height: 1.6;">
+                        <strong>📋 Next Steps:</strong>
+                        <br>• Mark these items for destruction
+                        <br>• Remove from inventory immediately
+                        <br>• Update disposal records
+                        <br>• Notify pharmaceutical waste management
+                    </p>
+                </div>
+            </div>
+
+            <!-- EXPIRING SOON SECTION -->
+            <div style="margin-bottom: 30px;">
+                <h3 style="color: #c98a00; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">⏰</span>
+                    EXPIRING SOON - WITHIN 30 DAYS
+                    <span id="expiringSoonBadgeCount" style="background-color: #ffc107; color: #333; padding: 5px 10px; border-radius: 20px; font-size: 14px; font-weight: bold;">...</span>
+                </h3>
+                
+                <div style="background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="color: #856404; margin: 0;">
+                        <strong>⏳ Attention:</strong> These medicines will expire soon. Prioritize their laboratory usage or consider consumption before expiry.
+                    </p>
+                </div>
+                
+                <div class="report-section" style="padding: 0; overflow: hidden;">
+                    <table>
+                        <thead>
+                            <tr style="background-color: #ffc107; color: #333;">
+                                <th>Sr.No</th>
+                                <th>Item Name</th>
+                                <th>Package</th>
+                                <th>Quantity</th>
+                                <th>Expiry Date</th>
+                                <th>Days Left</th>
+                                <th>Bill No</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expiringSoonTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                    ⏳ Checking near-expiry medicines (within 30 days)...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="background-color: #ffeaa7; padding: 14px 18px; border-radius: 8px; margin-top: 15px;">
+                    <p style="color: #856404; margin: 0; font-size: 13px; line-height: 1.6;">
+                        <strong>💡 Recommendations:</strong>
+                        <br>• Increase lab requests for these items
+                        <br>• Prioritize usage before expiry
+                        <br>• Review stock levels regularly
+                    </p>
+                </div>
+            </div>
+
+            <!-- SUMMARY STATISTICS -->
+            <div style="margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px;">
+                <div style="background-color: #d9534f; color: white; padding: 20px; border-radius: var(--radius-lg); text-align: center;">
+                    <h4 style="margin: 0 0 10px; font-size: 14px; opacity: 0.9;">EXPIRED</h4>
+                    <p id="statExpiredCount" style="margin: 0; font-size: 32px; font-weight: bold;">...</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; opacity: 0.9;">Items requiring disposal</p>
+                </div>
+                
+                <div style="background-color: #ffc107; color: #333; padding: 20px; border-radius: var(--radius-lg); text-align: center;">
+                    <h4 style="margin: 0 0 10px; font-size: 14px; opacity: 0.9;">EXPIRING SOON</h4>
+                    <p id="statExpiringSoonCount" style="margin: 0; font-size: 32px; font-weight: bold;">...</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; opacity: 0.9;">Items (within 30 days)</p>
+                </div>
+                
+                <div style="background-color: #c65244; color: white; padding: 20px; border-radius: var(--radius-lg); text-align: center;">
+                    <h4 style="margin: 0 0 10px; font-size: 14px; opacity: 0.9;">TOTAL ALERTS</h4>
+                    <p id="statTotalAlertsCount" style="margin: 0; font-size: 32px; font-weight: bold;">...</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; opacity: 0.9;">Critical items flagged</p>
+                </div>
+            </div>
+
+            <h3 style="color: var(--brand-deep); margin: 40px 0 15px;">Quick Actions</h3>
+            <div class="btn-group">
+                <a href="dashboard.html" class="btn">← Back to Dashboard</a>
+                <a href="reports.html" class="btn btn-secondary">📑 View Reports</a>
+                <a href="inventory.html" class="btn btn-secondary">📦 Manage Inventory</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/expiry-alerts.js"></script>
+    <script>
+        Auth.requireAuth('store').then(userAuth => {
+            if (userAuth) {
+                ExpiryAlertsModule.init();
+            }
+        });
+    </script>
+</body>
+</html>

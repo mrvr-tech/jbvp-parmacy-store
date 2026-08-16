@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Store - Login</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .role-hint {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f4f8f5;
+            border-radius: 10px;
+            border: 1px solid #dce8de;
+            font-size: 0.85rem;
+            color: #526257;
+        }
+
+        .role-hint strong {
+            color: var(--brand-deep);
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .quick-role-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .quick-btn {
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            text-align: center;
+            border-radius: 6px;
+            background: #ffffff;
+            border: 1px solid #c8d8cc;
+            color: var(--brand-deep);
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+        }
+
+        .quick-btn:hover {
+            background: var(--brand-soft);
+        }
+    </style>
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-header">
+            <img src="assets/college-logo.png" alt="College Logo">
+            <h1>💊 Pharmacy Store</h1>
+            <p>Inventory & Lab Management System</p>
+        </div>
+
+        <div id="loginError" class="alert alert-danger" style="display: none; padding: 12px; margin-bottom: 18px; font-size: 0.9rem;"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username or Email</label>
+                <input type="text" id="username" name="username" placeholder="e.g. admin or lab1" required autofocus value="admin">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter password" required value="admin123">
+            </div>
+
+            <button type="submit" id="loginBtn" class="btn" style="width: 100%; border-radius: 8px; font-size: 1rem;">🔐 Login</button>
+        </form>
+
+        <div class="role-hint">
+            <strong>📋 Demo Quick Login:</strong>
+            <p>Choose a role to populate credentials:</p>
+            <div class="quick-role-buttons">
+                <button type="button" class="quick-btn" onclick="setQuickLogin('admin', 'admin123')">📦 Store Keeper</button>
+                <button type="button" class="quick-btn" onclick="setQuickLogin('lab1', 'lab1123')">🔬 Lab 1 User</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function setQuickLogin(username, password) {
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+        }
+
+        // Auto-redirect if already logged in
+        Auth.redirectIfAuthenticated();
+
+        // Handle Login Submission
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const usernameInput = document.getElementById('username').value.trim();
+            const passwordInput = document.getElementById('password').value;
+            const errorBox = document.getElementById('loginError');
+            const submitBtn = document.getElementById('loginBtn');
+
+            errorBox.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Authenticating...';
+
+            try {
+                const result = await Auth.login(usernameInput, passwordInput);
+                window.location.href = result.redirectUrl;
+            } catch (err) {
+                console.error('Login failed:', err);
+                errorBox.textContent = '❌ ' + (err.message || 'Invalid username or password.');
+                errorBox.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🔐 Login';
+            }
+        });
+    </script>
+</body>
+</html>

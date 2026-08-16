@@ -1,0 +1,535 @@
+/**
+ * Store Approve Requests Module
+ * 
+ * Manages laboratory requisitions:
+ * - Loads live pending requests (public.v_pending_requests)
+ * - Loads approved request history (public.v_approved_requests)
+ * - Loads rejected request history (public.v_rejected_requests)
+ * - Executes public.approve_lab_request(_request_id) RPC
+ * - Executes public.reject_lab_request(_request_id) RPC
+ */
+(function (root, factory) {
+    if (typeof module === 'object' && module.exports) {
+        module.exports = factory(require('./config'), require('./supabase'), require('./auth'));
+    } else {
+        root.ApproveRequestsModule = factory(root.APP_CONFIG, root.SupabaseService, root.Auth);
+    }
+}(typeof self !== 'undefined' ? self : this, function (config, supabaseService, auth) {
+
+    let pendingList = [];
+    let approvedList = [];
+    let rejectedList = [];
+
+    /**
+     * Get initialized Supabase client
+     */
+    function getClient() {
+        const client = supabaseService && supabaseService.getClient();
+        if (!client) {
+            throw new Error('Supabase client is not available.');
+        }
+        return client;
+    }
+
+    /**
+     * Escape HTML string
+     */
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = String(str);
+        return div.innerHTML;
+    }
+
+    /**
+     * Format a date string (YYYY-MM-DD or ISO) to DD/MM/YYYY
+     */
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        } catch (e) {
+            return dateStr;
+        }
+    }
+
+    /**
+     * Display top-level feedback message
+     */
+    function showFeedback(type, message) {
+        const successBanner = document.getElementById('actionSuccess');
+        const errorBanner = document.getElementById('actionError');
+
+        if (successBanner) {
+            successBanner.style.display = 'none';
+            successBanner.innerHTML = '';
+        }
+        if (errorBanner) {
+            errorBanner.style.display = 'none';
+            errorBanner.innerHTML = '';
+        }
+
+        if (type === 'success' && successBanner) {
+            successBanner.innerHTML = `<strong>✅ Success:</strong> ${escapeHtml(message)}`;
+            successBanner.style.display = 'block';
+            successBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (type === 'error' && errorBanner) {
+            errorBanner.innerHTML = `<strong>❌ Error:</strong> ${escapeHtml(message)}`;
+            errorBanner.style.display = 'block';
+            errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    /**
+     * Load pending requests from v_pending_requests
+     */
+    async function fetchPendingRequests() {
+        const client = getClient();
+        
+        // 1. Try v_pending_requests view
+        try {
+            const { data, error } = await client
+                .from('v_pending_requests')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (!error && Array.isArray(data)) {
+                return data;
+            }
+            if (error) {
+                console.warn('v_pending_requests query warning:', error.message);
+            }
+        } catch (e) {
+            console.warn('Exception querying v_pending_requests:', e);
+        }
+
+        // 2. Fallback to querying lab_requests
+        try {
+            const { data, error } = await client
+                .from('lab_requests')
+                .select('*')
+                .ilike('status', '%pending%')
+                .order('created_at', { ascending: false });
+
+            if (!error && Array.isArray(data)) {
+                return data;
+            }
+            if (error) throw error;
+        } catch (err) {
+            console.error('Failed to fetch pending requests:', err);
+            return [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Load approved requests from v_approved_requests
+     */
+    async function fetchApprovedRequests() {
+        const client = getClient();
+
+        // 1. Try v_approved_requests view
+        try {
+            const { data, error } = await client
+                .from('v_approved_requests')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (!error && Array.isArray(data)) {
+                return data;
+            }
+        } catch (e) {
+            console.warn('Exception querying v_approved_requests:', e);
+        }
+
+        // 2. Fallback to lab_requests where status is Approved
+        try {
+            const { data, error } = await client
+                .from('lab_requests')
+                .select('*')
+                .ilike('status', '%approved%')
+                .order('created_at', { ascending: false });
+
+            if (!error && Array.isArray(data)) {
+                return data;
+            }
+        } catch (err) {
+            console.error('Failed to fetch approved requests:', err);
+        }
+
+        return [];
+    }
+
+    /**
+     * Load rejected requests from v_rejected_requests
+     */
+    async function fetchRejectedRequests() {
+        const client = getClient();
+
+        // 1. Try v_rejected_requests view
+        try {
+            const { data, error } = await client
+                .from('v_rejected_requests')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (!error && Array.isArray(data)) {
+                return data;
+            }
+        } catch (e) {
+            console.warn('Exception querying v_rejected_requests:', e);
+        }
+
+        // 2. Fallback to lab_requests where status is Rejected
+        try {
+            const { data, error } = await client
+                .from('lab_requests')
+                .select('*')
+                .ilike('status', '%rejected%')
+                .order('created_at', { ascending: false });
+
+            if (!error && Array.isArray(data)) {
+                return data;
+            }
+        } catch (err) {
+            console.error('Failed to fetch rejected requests:', err);
+        }
+
+        return [];
+    }
+
+    /**
+     * Render pending requests table
+     */
+    function renderPendingTable(requests) {
+        const tbody = document.getElementById('pendingTableBody');
+        const countHeader = document.getElementById('pendingCountHeader');
+        if (!tbody) return;
+
+        if (countHeader) {
+            countHeader.textContent = `⏳ Pending Requests (${requests.length})`;
+        }
+
+        if (requests.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: #6a7a6f;">
+                        <div style="font-size: 1.8rem; margin-bottom: 6px;">✨</div>
+                        <strong>No pending lab requests.</strong>
+                        <p style="margin-top: 4px; font-size: 0.88rem; color: #8c9b91;">
+                            All requisitions have been processed.
+                        </p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = requests.map(req => {
+            const reqId = req.id || req.request_id;
+            const labName = req.lab_name || req.lab || 'Lab';
+            const itemName = req.item_name || req.item || 'Item';
+            const reqQty = req.quantity || req.requested_quantity || 1;
+            const availQty = (typeof req.available_quantity === 'number') 
+                ? req.available_quantity 
+                : (typeof req.current_quantity === 'number' ? req.current_quantity : (typeof req.quantity_in_stock === 'number' ? req.quantity_in_stock : null));
+            const reqDate = formatDate(req.date || req.created_at);
+
+            let availBadge = '';
+            let canApprove = true;
+
+            if (availQty !== null) {
+                if (availQty >= reqQty) {
+                    availBadge = `<span class="badge badge-success">${availQty} ✓</span>`;
+                } else if (availQty > 0) {
+                    availBadge = `<span class="badge badge-warning">${availQty} (Need: ${reqQty})</span>`;
+                } else {
+                    availBadge = `<span class="badge badge-danger">0 (Need: ${reqQty})</span>`;
+                    canApprove = false;
+                }
+            } else {
+                availBadge = `<span class="badge badge-success">Available ✓</span>`;
+            }
+
+            const approveBtn = canApprove
+                ? `<button class="btn" style="padding: 6px 14px; font-size: 12px; margin: 2px;" onclick="ApproveRequestsModule.handleApprove('${escapeHtml(reqId)}', '${escapeHtml(itemName)}', ${reqQty})">✓ Approve</button>`
+                : `<button class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px; margin: 2px;" disabled title="Insufficient store stock">Stock Unavailable</button>`;
+
+            const rejectBtn = `<button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; margin: 2px;" onclick="ApproveRequestsModule.handleReject('${escapeHtml(reqId)}', '${escapeHtml(itemName)}')">✗ Reject</button>`;
+
+            return `
+                <tr id="req-row-${escapeHtml(reqId)}">
+                    <td><strong>${escapeHtml(labName)}</strong></td>
+                    <td>${escapeHtml(itemName)}</td>
+                    <td><strong>${reqQty}</strong></td>
+                    <td>${availBadge}</td>
+                    <td>${reqDate}</td>
+                    <td>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            ${approveBtn}
+                            ${rejectBtn}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Render approved requests table
+     */
+    function renderApprovedTable(requests) {
+        const tbody = document.getElementById('approvedTableBody');
+        const countHeader = document.getElementById('approvedCountHeader');
+        if (!tbody) return;
+
+        if (countHeader) {
+            countHeader.textContent = `✓ Approved Requests (${requests.length})`;
+        }
+
+        if (requests.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 25px; color: #6a7a6f;">
+                        No approved requests recorded yet.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = requests.map(req => {
+            const labName = req.lab_name || req.lab || 'Lab';
+            const itemName = req.item_name || req.item || 'Item';
+            const reqQty = req.quantity || req.requested_quantity || 1;
+            const appQty = req.approved_quantity !== undefined ? req.approved_quantity : reqQty;
+            const reqDate = formatDate(req.date || req.created_at || req.updated_at);
+
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(labName)}</strong></td>
+                    <td>${escapeHtml(itemName)}</td>
+                    <td>${reqQty}</td>
+                    <td><strong>${appQty}</strong></td>
+                    <td>${reqDate}</td>
+                    <td><span class="badge badge-success">✓ Approved</span></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Render rejected requests table
+     */
+    function renderRejectedTable(requests) {
+        const container = document.getElementById('rejectedSection');
+        const tbody = document.getElementById('rejectedTableBody');
+        const countHeader = document.getElementById('rejectedCountHeader');
+        if (!tbody || !container) return;
+
+        if (requests.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+
+        if (countHeader) {
+            countHeader.textContent = `✗ Rejected Requests (${requests.length})`;
+        }
+
+        tbody.innerHTML = requests.map(req => {
+            const labName = req.lab_name || req.lab || 'Lab';
+            const itemName = req.item_name || req.item || 'Item';
+            const reqQty = req.quantity || req.requested_quantity || 1;
+            const reqDate = formatDate(req.date || req.created_at || req.updated_at);
+
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(labName)}</strong></td>
+                    <td>${escapeHtml(itemName)}</td>
+                    <td>${reqQty}</td>
+                    <td>${reqDate}</td>
+                    <td><span class="badge badge-danger">✗ Rejected</span></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Call public.approve_lab_request RPC
+     */
+    async function executeApproveRpc(requestId) {
+        const client = getClient();
+
+        // 1. Try standard _request_id signature
+        let result = await client.rpc('approve_lab_request', { _request_id: requestId });
+
+        if (result.error) {
+            const errMsg = (result.error.message || '').toLowerCase();
+            if (errMsg.includes('parameter') || errMsg.includes('signature') || errMsg.includes('named')) {
+                // Try p_request_id
+                result = await client.rpc('approve_lab_request', { p_request_id: requestId });
+                if (result.error) {
+                    // Try request_id
+                    result = await client.rpc('approve_lab_request', { request_id: requestId });
+                }
+            }
+        }
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        return result.data;
+    }
+
+    /**
+     * Call public.reject_lab_request RPC
+     */
+    async function executeRejectRpc(requestId) {
+        const client = getClient();
+
+        // 1. Try standard _request_id signature
+        let result = await client.rpc('reject_lab_request', { _request_id: requestId });
+
+        if (result.error) {
+            const errMsg = (result.error.message || '').toLowerCase();
+            if (errMsg.includes('parameter') || errMsg.includes('signature') || errMsg.includes('named')) {
+                // Try p_request_id
+                result = await client.rpc('reject_lab_request', { p_request_id: requestId });
+                if (result.error) {
+                    // Try request_id
+                    result = await client.rpc('reject_lab_request', { request_id: requestId });
+                }
+            }
+        }
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        return result.data;
+    }
+
+    /**
+     * Handle user click on Approve button
+     */
+    async function handleApprove(requestId, itemName, quantity) {
+        const confirmed = window.confirm(
+            `Confirm Stock Approval:\n\nAre you sure you want to approve this request for ${quantity} unit(s) of "${itemName}"?\n\nThis will automatically deduct the stock from Store Inventory.`
+        );
+
+        if (!confirmed) return;
+
+        const row = document.getElementById(`req-row-${requestId}`);
+        const buttons = row ? row.querySelectorAll('button') : [];
+        buttons.forEach(btn => btn.disabled = true);
+
+        try {
+            await executeApproveRpc(requestId);
+            showFeedback('success', `Request for ${quantity} unit(s) of "${itemName}" approved successfully! Store inventory has been updated.`);
+            await loadAll();
+        } catch (err) {
+            console.error('Approve RPC failed:', err);
+            const msg = err.message || 'Failed to approve request. Please check available stock.';
+            showFeedback('error', msg);
+            buttons.forEach(btn => btn.disabled = false);
+        }
+    }
+
+    /**
+     * Handle user click on Reject button
+     */
+    async function handleReject(requestId, itemName) {
+        const confirmed = window.confirm(
+            `Confirm Request Rejection:\n\nAre you sure you want to reject the request for "${itemName}"?`
+        );
+
+        if (!confirmed) return;
+
+        const row = document.getElementById(`req-row-${requestId}`);
+        const buttons = row ? row.querySelectorAll('button') : [];
+        buttons.forEach(btn => btn.disabled = true);
+
+        try {
+            await executeRejectRpc(requestId);
+            showFeedback('success', `Request for "${itemName}" has been rejected.`);
+            await loadAll();
+        } catch (err) {
+            console.error('Reject RPC failed:', err);
+            const msg = err.message || 'Failed to reject request.';
+            showFeedback('error', msg);
+            buttons.forEach(btn => btn.disabled = false);
+        }
+    }
+
+    /**
+     * Load all queues concurrently
+     */
+    async function loadAll() {
+        try {
+            const [pending, approved, rejected] = await Promise.all([
+                fetchPendingRequests(),
+                fetchApprovedRequests(),
+                fetchRejectedRequests()
+            ]);
+
+            pendingList = pending;
+            approvedList = approved;
+            rejectedList = rejected;
+
+            renderPendingTable(pendingList);
+            renderApprovedTable(approvedList);
+            renderRejectedTable(rejectedList);
+        } catch (err) {
+            console.error('Error loading request queues:', err);
+            showFeedback('error', 'Unable to retrieve requests data from Supabase.');
+        }
+    }
+
+    /**
+     * Initialize Module
+     */
+    async function init() {
+        const pendingTbody = document.getElementById('pendingTableBody');
+        const approvedTbody = document.getElementById('approvedTableBody');
+
+        if (pendingTbody) {
+            pendingTbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                        ⏳ Loading pending requisitions from Supabase...
+                    </td>
+                </tr>
+            `;
+        }
+        if (approvedTbody) {
+            approvedTbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 20px; color: var(--text-soft);">
+                        ⏳ Loading approved request history...
+                    </td>
+                </tr>
+            `;
+        }
+
+        await loadAll();
+    }
+
+    return {
+        init,
+        loadAll,
+        handleApprove,
+        handleReject,
+        fetchPendingRequests,
+        fetchApprovedRequests,
+        fetchRejectedRequests
+    };
+}));

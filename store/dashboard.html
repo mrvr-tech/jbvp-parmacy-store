@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Pharmacy Store Management</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link active">Dashboard</a></li>
+                <li><a href="inventory.html" class="nav-link">Inventory</a></li>
+                <li><a href="add-item.html" class="nav-link">Add Item</a></li>
+                <li><a href="approve-requests.html" class="nav-link">Approve Requests</a></li>
+                <li><a href="expiry-alerts.html" class="nav-link">Expiry Alerts</a></li>
+                <li><a href="reports.html" class="nav-link">Reports</a></li>
+                <li><a href="user-management.html" class="nav-link">Users & Labs</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Store Admin: Store Keeper
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <div class="dashboard-hero">
+                <div>
+                    <p class="dashboard-kicker">Store Overview</p>
+                    <h2 class="section-title">Dashboard</h2>
+                    <p class="section-intro">
+                        Monitor stock levels, lab demand, and upcoming expiry risks from one central workspace.
+                    </p>
+                </div>
+
+                <div class="dashboard-stamp">
+                    <p class="stamp-label">Last Updated</p>
+                    <p class="stamp-time" id="dashboardTimestamp">--</p>
+                </div>
+            </div>
+
+            <!-- Summary Stats Cards -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <p class="stat-label">Total Items in Stock</p>
+                    <h3 class="stat-value" id="statTotalItems">...</h3>
+                    <span class="stat-meta" id="statTotalItemsMeta">Current inventory entries</span>
+                </div>
+
+                <div class="stat-card">
+                    <p class="stat-label">Labs Connected</p>
+                    <h3 class="stat-value" id="statLabsConnected">...</h3>
+                    <span class="stat-meta">Active labs requesting stock</span>
+                </div>
+
+                <div class="stat-card">
+                    <p class="stat-label">Pending Requests</p>
+                    <h3 class="stat-value" id="statPendingRequests">...</h3>
+                    <span class="stat-meta">Requests waiting for approval</span>
+                </div>
+
+                <div class="stat-card is-danger">
+                    <p class="stat-label">Low Stock Items</p>
+                    <h3 class="stat-value" id="statLowStock">...</h3>
+                    <span class="stat-meta">Items that need replenishment</span>
+                </div>
+
+                <div class="stat-card is-warning">
+                    <p class="stat-label">Expiring in 30 Days</p>
+                    <h3 class="stat-value" id="statExpiringSoon">...</h3>
+                    <span class="stat-meta">Items needing closer follow-up</span>
+                </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="quick-actions">
+                <h3>Quick Actions</h3>
+                <div class="btn-group">
+                    <a href="inventory.html" class="btn">Open Inventory</a>
+                    <a href="add-item.html" class="btn btn-secondary">Add New Item</a>
+                    <a href="approve-requests.html" class="btn btn-secondary">Review Requests</a>
+                    <a href="reports.html" class="btn btn-secondary">View Reports</a>
+                </div>
+            </div>
+
+            <!-- Lower Grid Panels -->
+            <div class="dashboard-grid">
+                <!-- Expiry Alerts Panel -->
+                <div class="panel alert-summary">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+                        <h3 style="margin: 0;">Expiry Alerts</h3>
+                        <span class="alert-count" id="alertTotalCount">...</span>
+                    </div>
+
+                    <p class="section-intro" style="margin: 14px 0 0;">
+                        Expired and near-expiry items need attention to avoid waste and maintain safe stock handling.
+                    </p>
+                    <div class="alert-list">
+                        <div class="alert-row">
+                            <div>
+                                <strong>Expired Items</strong>
+                                <p>Remove these medicines from active inventory immediately.</p>
+                            </div>
+                            <span class="badge badge-danger" id="alertExpiredCount">...</span>
+                        </div>
+                        <div class="alert-row">
+                            <div>
+                                <strong>Expiring Soon</strong>
+                                <p>Prioritize use of items reaching expiry within 30 days.</p>
+                            </div>
+                            <span class="badge badge-warning" id="alertExpiringSoonCount">...</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 18px;">
+                        <a href="expiry-alerts.html" class="btn">Open Expiry Alerts</a>
+                    </div>
+                </div>
+
+                <!-- System Status Panel -->
+                <div class="panel">
+                    <h3>System Status</h3>
+                    <div class="system-list">
+                        <div class="system-row">
+                            <strong>Inventory Monitoring</strong>
+                            <p>Stock, approvals, and expiry checks are available from this dashboard.</p>
+                        </div>
+                        <div class="system-row">
+                            <strong>Approvals Queue</strong>
+                            <p id="systemQueueStatus">Checking requests queue...</p>
+                        </div>
+                        <div class="system-row">
+                            <strong>Reports Access</strong>
+                            <p>PDF and Excel exports remain available from the reports page.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/dashboard.js"></script>
+    <script>
+        Auth.requireAuth('store').then(userAuth => {
+            if (userAuth) {
+                DashboardModule.init();
+            }
+        });
+    </script>
+</body>
+</html>

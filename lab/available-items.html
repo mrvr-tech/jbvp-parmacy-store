@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Items - Lab Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2 id="labHeaderTitle">🔬 Lab Portal</h2>
+            <p>Pharmacy Store - Available Items Catalog</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">📦 Available Items</a></li>
+                <li><a href="available-items.html" class="nav-link active">📋 Catalog View</a></li>
+                <li><a href="request-item.html" class="nav-link">📝 Request Item</a></li>
+                <li><a href="request-history.html" class="nav-link">📋 Request History</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Lab User: Lab 1
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">📦 Store Inventory Catalog</h2>
+            <p class="section-intro">
+                Detailed view of current store availability across all pharmaceutical categories.
+            </p>
+
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <form id="searchForm" onsubmit="event.preventDefault();" style="display: flex; gap: 10px; flex: 1; min-width: 250px; flex-wrap: wrap;">
+                    <input
+                        type="text"
+                        placeholder="Search available stock..."
+                        style="flex: 1; padding: 10px 14px; border: 1px solid #d9e2db; border-radius: 8px; font-size: 14px; min-width: 200px;"
+                    >
+                    <select style="padding: 10px 14px; border: 1px solid #d9e2db; border-radius: 8px; font-size: 14px; min-width: 180px;">
+                        <option value="">All Categories</option>
+                        <option value="chemicals">Chemicals</option>
+                        <option value="glassware">Glassware</option>
+                        <option value="instruments">Instruments</option>
+                        <option value="computer">Computer Store</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <button type="submit" class="btn" style="white-space: nowrap;">Search</button>
+                    <button type="button" class="btn btn-secondary" style="white-space: nowrap;" onclick="document.querySelector('#searchForm input').value=''; document.querySelector('#searchForm select').value=''; LabAvailableItemsModule.applyFilters();">Clear</button>
+                </form>
+            </div>
+
+            <div class="report-section">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Item Name</th>
+                            <th>Package</th>
+                            <th>Available Units</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 25px; color: var(--text-soft);">
+                                ⏳ Loading store catalog...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System - Lab Portal
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/lab-available-items.js"></script>
+    <script>
+        Auth.requireAuth('lab').then(userAuth => {
+            if (userAuth) {
+                LabAvailableItemsModule.init(userAuth);
+            }
+        });
+    </script>
+</body>
+</html>

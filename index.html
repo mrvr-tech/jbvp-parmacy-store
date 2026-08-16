@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vidya Niketan College of Pharmacy - Pharmacy Store Management</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .portal-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 28px;
+        }
+
+        .portal-card {
+            background: #ffffff;
+            padding: 32px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--line);
+            box-shadow: 0 16px 36px rgba(27, 43, 32, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .portal-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 44px rgba(27, 43, 32, 0.14);
+        }
+
+        .portal-icon {
+            font-size: 2.8rem;
+            margin-bottom: 16px;
+        }
+
+        .portal-card h3 {
+            color: var(--brand-deep);
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+        }
+
+        .portal-card p {
+            color: var(--text-soft);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="index.html" class="nav-link active">Home</a></li>
+                <li><a href="login.html" class="nav-link">Login</a></li>
+                <li><a href="store/dashboard.html" class="nav-link">Store Keeper Portal</a></li>
+                <li><a href="lab/dashboard.html" class="nav-link">Lab Portal</a></li>
+            </ul>
+
+            <div class="nav-meta" id="navAuthArea">
+                <a href="login.html" class="btn">🔐 Sign In</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">Welcome to Pharmacy Store Management</h2>
+            <p class="section-intro">
+                Centralized inventory tracking, purchase management, laboratory requisition workflows, and regulatory expiry monitoring for Vidya Niketan College of Pharmacy.
+            </p>
+
+            <div class="portal-selection">
+                <!-- Store Keeper Card -->
+                <div class="portal-card" style="border-top: 4px solid var(--brand);">
+                    <div>
+                        <div class="portal-icon">📦</div>
+                        <h3>Store Keeper Portal</h3>
+                        <p>
+                            Manage central stock across Chemicals, Glassware, Instruments, and Computer Store. Review purchase records, approve lab requests, track expiry alerts, and export PDF/Excel reports.
+                        </p>
+                    </div>
+                    <a href="store/dashboard.html" class="btn">Access Store Keeper Dashboard →</a>
+                </div>
+
+                <!-- Lab User Card -->
+                <div class="portal-card" style="border-top: 4px solid #2d5f9f;">
+                    <div>
+                        <div class="portal-icon">🔬</div>
+                        <h3>Laboratory Portal</h3>
+                        <p>
+                            Dedicated portal for Labs 1 through 17. Check live store availability, submit requisitions for chemicals/glassware/instruments, and monitor private request approval histories.
+                        </p>
+                    </div>
+                    <a href="lab/dashboard.html" class="btn btn-secondary">Access Lab Dashboard →</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Check session and display user status if authenticated
+        Auth.getSession().then(session => {
+            if (session && session.user) {
+                Auth.getCurrentProfile(session.user).then(profile => {
+                    const navAuthArea = document.getElementById('navAuthArea');
+                    if (navAuthArea && profile) {
+                        const displayName = profile.role === 'store' 
+                            ? `Store Admin: ${profile.full_name || profile.username || 'Store Keeper'}`
+                            : `Lab User: ${profile.lab_name || profile.username || 'Lab User'}`;
+                        navAuthArea.innerHTML = `
+                            <span class="user-chip">${displayName}</span>
+                            <a href="login.html" class="nav-link" data-action="logout">Logout</a>
+                        `;
+                        const logoutBtn = navAuthArea.querySelector('[data-action="logout"]');
+                        if (logoutBtn) logoutBtn.addEventListener('click', Auth.logout);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

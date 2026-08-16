@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User & Lab Management - Pharmacy Store</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+                <li><a href="inventory.html" class="nav-link">Inventory</a></li>
+                <li><a href="add-item.html" class="nav-link">Add Item</a></li>
+                <li><a href="approve-requests.html" class="nav-link">Approve Requests</a></li>
+                <li><a href="expiry-alerts.html" class="nav-link">Expiry Alerts</a></li>
+                <li><a href="reports.html" class="nav-link">Reports</a></li>
+                <li><a href="user-management.html" class="nav-link active">Users & Labs</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Store Admin: Store Keeper
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+                <div>
+                    <h2 class="section-title">User & Laboratory Management</h2>
+                    <p class="section-intro">
+                        Administer application accounts for Store personnel and Laboratory users, and manage campus lab units.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Global Feedback Alert Banner -->
+            <div id="managementAlert" class="alert" style="display: none; margin-bottom: 22px;"></div>
+
+            <!-- Management Section Tabs -->
+            <div class="management-tabs">
+                <button type="button" id="tabUsersBtn" class="tab-btn is-active" onclick="UserManagementModule.switchTab('users')">
+                    👥 User Accounts (<span id="totalUsersCount">0</span>)
+                </button>
+                <button type="button" id="tabLabsBtn" class="tab-btn" onclick="UserManagementModule.switchTab('labs')">
+                    🔬 Laboratories (<span id="totalLabsCount">0</span>)
+                </button>
+            </div>
+
+            <!-- SECTION A: USERS -->
+            <div id="usersSection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h3 style="color: var(--brand-deep); font-size: 1.15rem;">Application Users</h3>
+                        <p style="font-size: 0.85rem; color: #5a7061; margin-top: 2px;">
+                            Registered Store Keepers and Lab Requisition accounts.
+                        </p>
+                    </div>
+                    <button type="button" class="btn" onclick="UserManagementModule.openModal('addUserModal')" style="font-size: 0.9rem; padding: 9px 18px;">
+                        ➕ Add New User
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Display Name</th>
+                                <th>Email / Login</th>
+                                <th>Role</th>
+                                <th>Assigned Lab</th>
+                                <th style="width: 110px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 25px; color: #6a7a6f;">
+                                    ⏳ Loading user records...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION B: LABS -->
+            <div id="labsSection" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h3 style="color: var(--brand-deep); font-size: 1.15rem;">Configured Laboratories</h3>
+                        <p style="font-size: 0.85rem; color: #5a7061; margin-top: 2px;">
+                            Connected campus laboratories eligible for stock requisitioning.
+                        </p>
+                    </div>
+                    <button type="button" class="btn" onclick="UserManagementModule.openModal('addLabModal')" style="font-size: 0.9rem; padding: 9px 18px;">
+                        ➕ Add New Lab
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Lab Name</th>
+                                <th>Created At</th>
+                                <th style="width: 140px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="labsTableBody">
+                            <tr>
+                                <td colspan="3" style="text-align: center; padding: 25px; color: #6a7a6f;">
+                                    ⏳ Loading laboratory records...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL 1: ADD USER -->
+    <div id="addUserModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>➕ Add New User</h3>
+                <button type="button" class="modal-close-btn" onclick="UserManagementModule.closeModal('addUserModal')">✕</button>
+            </div>
+            <form id="addUserForm">
+                <div class="modal-body">
+                    <div id="addUserError" class="alert alert-danger" style="display: none; margin-bottom: 16px; font-size: 0.88rem;"></div>
+
+                    <div class="form-group">
+                        <label for="userDisplayName">Display Name *</label>
+                        <input type="text" id="userDisplayName" placeholder="e.g., Lab 18 In-Charge or Pharmacist John" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userEmail">Email Address *</label>
+                        <input type="email" id="userEmail" placeholder="e.g., lab18@pharmacy.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userTypeSelect">User Type / Role *</label>
+                        <select id="userTypeSelect" required>
+                            <option value="lab" selected>Lab User (Requisition & History Portal)</option>
+                            <option value="store">Store Admin (Inventory & Approvals Portal)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="userLabGroup">
+                        <label for="userLabSelect">Assigned Laboratory *</label>
+                        <select id="userLabSelect" required>
+                            <option value="">-- Loading Labs... --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userPassword">Initial Password * (min 6 characters)</label>
+                        <input type="password" id="userPassword" placeholder="Enter secure password" required minlength="6">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="UserManagementModule.closeModal('addUserModal')">Cancel</button>
+                    <button type="submit" id="addUserSubmitBtn" class="btn">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ADD LAB -->
+    <div id="addLabModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>➕ Add New Laboratory</h3>
+                <button type="button" class="modal-close-btn" onclick="UserManagementModule.closeModal('addLabModal')">✕</button>
+            </div>
+            <form id="addLabForm">
+                <div class="modal-body">
+                    <div id="addLabError" class="alert alert-danger" style="display: none; margin-bottom: 16px; font-size: 0.88rem;"></div>
+
+                    <div class="form-group">
+                        <label for="labNameInput">Laboratory Name *</label>
+                        <input type="text" id="labNameInput" placeholder="e.g., Lab 18 - Microbiology" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="UserManagementModule.closeModal('addLabModal')">Cancel</button>
+                    <button type="submit" id="addLabSubmitBtn" class="btn">Create Lab</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/user-management.js"></script>
+    <script>
+        Auth.requireAuth('store').then(userAuth => {
+            if (userAuth) {
+                UserManagementModule.init();
+            }
+        });
+    </script>
+</body>
+</html>

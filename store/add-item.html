@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Item - Store Keeper</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <img src="../assets/college-logo.png" alt="Vidya Niketan College of Pharmacy logo">
+            <div>
+                <h1 class="college-title">Vidya Niketan College of Pharmacy</h1>
+                <p class="college-subtitle">Lakhwadi, Pune</p>
+            </div>
+        </div>
+
+        <div class="system-title">
+            <h2>Pharmacy Store Management</h2>
+            <p>Complete Inventory and Lab Management System</p>
+        </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <ul class="nav-menu">
+                <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+                <li><a href="inventory.html" class="nav-link">Inventory</a></li>
+                <li><a href="add-item.html" class="nav-link active">Add Item</a></li>
+                <li><a href="approve-requests.html" class="nav-link">Approve Requests</a></li>
+                <li><a href="expiry-alerts.html" class="nav-link">Expiry Alerts</a></li>
+                <li><a href="reports.html" class="nav-link">Reports</a></li>
+                <li><a href="user-management.html" class="nav-link">Users & Labs</a></li>
+            </ul>
+
+            <div class="nav-meta">
+                <span class="user-chip">
+                    Store Admin: Store Keeper
+                </span>
+                <a href="../login.html" class="nav-link" data-action="logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="page-shell">
+        <div class="content">
+            <h2 class="section-title">Add New Item</h2>
+            <p class="section-intro">
+                Register a new batch or store item entry with vendor invoice and expiration details.
+            </p>
+
+            <!-- Feedback Alert Banners -->
+            <div id="formError" class="alert alert-danger" style="display: none; margin-bottom: 20px;"></div>
+            <div id="formSuccess" class="alert alert-success" style="display: none; margin-bottom: 20px;"></div>
+
+            <div class="form-container">
+                <form id="addItemForm">
+                    <!-- Category -->
+                    <div class="form-group">
+                        <label for="category">Category *</label>
+                        <select id="category" name="category" required>
+                            <option value="">Select a category</option>
+                            <option value="chemicals">Chemicals</option>
+                            <option value="glassware">Glassware</option>
+                            <option value="instruments">Instruments</option>
+                            <option value="computer">Computer Store</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Item Name -->
+                    <div class="form-group">
+                        <label for="item_name">Item Name *</label>
+                        <input type="text" id="item_name" name="item_name" placeholder="e.g., Acetone AR" required>
+                    </div>
+
+                    <!-- Package Size -->
+                    <div class="form-group">
+                        <label for="packages">Package Size/Type (e.g., 500mg, 1L, 100 tablets)</label>
+                        <input type="text" id="packages" name="packages" placeholder="e.g., 500ml, 1L, 100 tablets">
+                    </div>
+
+                    <!-- Quantity -->
+                    <div class="form-group">
+                        <label for="quantity">Quantity *</label>
+                        <input type="number" id="quantity" name="quantity" placeholder="e.g., 20" required min="1" value="1">
+                    </div>
+
+                    <!-- Price & Tax -->
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="price">Price (Rs.) *</label>
+                            <input type="number" id="price" name="price" placeholder="e.g., 250" required min="0" step="0.01" value="0.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="tax">Tax (Rs.)</label>
+                            <input type="number" id="tax" name="tax" placeholder="e.g., 0" min="0" step="0.01" value="0.00">
+                        </div>
+                    </div>
+
+                    <!-- Bill No -->
+                    <div class="form-group">
+                        <label for="bill_no">Bill No *</label>
+                        <input type="text" id="bill_no" name="bill_no" placeholder="e.g., B101" required>
+                    </div>
+
+                    <!-- Dates -->
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label for="date">Date *</label>
+                            <input type="date" id="date" name="date" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="expiry_date">Expiry Date *</label>
+                            <input type="date" id="expiry_date" name="expiry_date" required>
+                        </div>
+                    </div>
+
+                    <!-- Vendor Name -->
+                    <div class="form-group">
+                        <label for="vendor_name">Vendor Name *</label>
+                        <input type="text" id="vendor_name" name="vendor_name" placeholder="e.g., ABC Chemicals" required>
+                    </div>
+
+                    <!-- Vendor Address -->
+                    <div class="form-group">
+                        <label for="vendor_address">Vendor Address *</label>
+                        <textarea id="vendor_address" name="vendor_address" placeholder="Enter vendor address" required rows="3"></textarea>
+                    </div>
+
+                    <!-- Vendor PAN -->
+                    <div class="form-group">
+                        <label for="vendor_pan">Vendor PAN *</label>
+                        <input type="text" id="vendor_pan" name="vendor_pan" placeholder="e.g., AAAPA1234A" required>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 12px; margin-top: 10px;">
+                        <button type="submit" class="btn">Add Item</button>
+                        <a href="inventory.html" class="btn btn-secondary">Back to Inventory</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        Vidya Niketan College of Pharmacy | Pharmacy Store Management System
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/add-item.js"></script>
+    <script>
+        Auth.requireAuth('store').then(userAuth => {
+            if (userAuth) {
+                AddItemModule.init();
+            }
+        });
+    </script>
+</body>
+</html>
