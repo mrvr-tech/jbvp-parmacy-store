@@ -265,56 +265,80 @@
 
             const today = new Date().toISOString().split('T')[0];
 
-            // 1. Insert requisition header into lab_requests table
-            const headerPayload = {
-                lab_id: labId,
-                status: 'Pending',
-                requested_by: user.id
-            };
-
             let reqId = null;
-            let reqInsertData = null;
 
-            const { data: headerData, error: headerErr } = await client
-                .from('lab_requests')
-                .insert([headerPayload])
-                .select();
+            // 1. Try create_lab_requisition RPC (transactional and bypasses client RLS race conditions)
+            try {
+                const { data: rpcData, error: rpcErr } = await client.rpc('create_lab_requisition', {
+                    p_lab_id: labId,
+                    p_item_id: itemId,
+                    p_quantity: qty
+                });
+                if (!rpcErr && rpcData && rpcData.request_id) {
+                    reqId = rpcData.request_id;
+                }
+            } catch (rpcEx) {
+                console.info('create_lab_requisition RPC unhandled, falling back to direct table inserts:', rpcEx);
+            }
 
-            if (headerErr) {
-                console.warn('Header insert error, trying flat payload fallback:', headerErr.message);
-                const flatPayload = {
+            if (!reqId) {
+                // Ensure profile is synced with lab_id in database
+                try {
+                    await client.from('profiles').upsert([{
+                        id: user.id,
+                        role: 'lab',
+                        lab_id: labId,
+                        display_name: labName,
+                        updated_at: new Date().toISOString()
+                    }]);
+                } catch (profSyncErr) {
+                    console.warn('Profile sync notice:', profSyncErr);
+                }
+
+                // Insert requisition header into lab_requests table
+                const headerPayload = {
                     lab_id: labId,
-                    item_id: itemId,
-                    quantity: qty,
                     status: 'Pending',
                     requested_by: user.id
                 };
-                const { data: flatData, error: flatErr } = await client
+
+                const { data: headerData, error: headerErr } = await client
                     .from('lab_requests')
-                    .insert([flatPayload])
+                    .insert([headerPayload])
                     .select();
 
-                if (flatErr) throw (headerErr || flatErr);
-                reqInsertData = flatData;
-            } else {
-                reqInsertData = headerData;
-            }
+                if (headerErr) {
+                    console.warn('Header insert error, trying flat payload fallback:', headerErr.message);
+                    const flatPayload = {
+                        lab_id: labId,
+                        item_id: itemId,
+                        quantity: qty,
+                        status: 'Pending',
+                        requested_by: user.id
+                    };
+                    const { data: flatData, error: flatErr } = await client
+                        .from('lab_requests')
+                        .insert([flatPayload])
+                        .select();
 
-            if (reqInsertData && reqInsertData.length > 0) {
-                reqId = reqInsertData[0].id;
-            }
+                    if (flatErr) throw (headerErr || flatErr);
+                    if (flatData && flatData.length > 0) reqId = flatData[0].id;
+                } else if (headerData && headerData.length > 0) {
+                    reqId = headerData[0].id;
+                }
 
-            // 2. Insert line item detail into lab_request_items
-            if (reqId) {
-                try {
-                    await client.from('lab_request_items').insert([{
-                        lab_request_id: reqId,
-                        inventory_item_id: itemId,
-                        count: qty,
-                        status: 'Pending'
-                    }]);
-                } catch (lineErr) {
-                    console.info('lab_request_items line item insert notice:', lineErr);
+                // Insert line item detail into lab_request_items
+                if (reqId) {
+                    try {
+                        await client.from('lab_request_items').insert([{
+                            lab_request_id: reqId,
+                            inventory_item_id: itemId,
+                            count: qty,
+                            status: 'Pending'
+                        }]);
+                    } catch (lineErr) {
+                        console.info('lab_request_items line item insert notice:', lineErr);
+                    }
                 }
             }
 
