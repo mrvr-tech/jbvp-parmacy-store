@@ -101,28 +101,64 @@
             if (!error && Array.isArray(data)) {
                 return data;
             }
-            if (error) {
-                console.warn('v_pending_requests query warning:', error.message);
-            }
         } catch (e) {
-            console.warn('Exception querying v_pending_requests:', e);
+            console.warn('v_pending_requests view notice:', e);
         }
 
-        // 2. Fallback to querying lab_requests
+        // 2. Fallback: Query lab_requests joined with labs, profiles, lab_request_items & inventory_items
         try {
             const { data, error } = await client
                 .from('lab_requests')
-                .select('*')
+                .select(`
+                    id,
+                    created_at,
+                    status,
+                    lab_id,
+                    labs ( name ),
+                    profiles ( display_name ),
+                    lab_request_items (
+                        id,
+                        inventory_item_id,
+                        count,
+                        inventory_items (
+                            item_name,
+                            category,
+                            packages,
+                            current_stock
+                        )
+                    )
+                `)
                 .ilike('status', '%pending%')
                 .order('created_at', { ascending: false });
 
             if (!error && Array.isArray(data)) {
-                return data;
+                const flattened = [];
+                data.forEach(r => {
+                    const labName = r.labs?.name || 'Laboratory';
+                    const requester = r.profiles?.display_name || 'Lab In-Charge';
+                    const items = (r.lab_request_items && r.lab_request_items.length > 0) ? r.lab_request_items : [{}];
+                    
+                    items.forEach(it => {
+                        const inv = it.inventory_items || {};
+                        flattened.push({
+                            id: r.id,
+                            date: r.created_at,
+                            lab_name: labName,
+                            requested_by: requester,
+                            item_id: it.inventory_item_id || r.item_id,
+                            item_name: inv.item_name || r.item_name || 'Store Item',
+                            category: inv.category || r.category || 'General',
+                            packages: inv.packages || r.packages || '',
+                            available_stock: inv.current_stock !== undefined ? inv.current_stock : 0,
+                            quantity: it.count || r.quantity || 1,
+                            status: r.status || 'Pending'
+                        });
+                    });
+                });
+                return flattened;
             }
-            if (error) throw error;
         } catch (err) {
-            console.error('Failed to fetch pending requests:', err);
-            return [];
+            console.warn('Joined pending requests fallback notice:', err);
         }
 
         return [];
@@ -145,22 +181,61 @@
                 return data;
             }
         } catch (e) {
-            console.warn('Exception querying v_approved_requests:', e);
+            console.warn('v_approved_requests view notice:', e);
         }
 
-        // 2. Fallback to lab_requests where status is Approved
+        // 2. Fallback: Query lab_requests joined with labs, profiles, lab_request_items & inventory_items
         try {
             const { data, error } = await client
                 .from('lab_requests')
-                .select('*')
+                .select(`
+                    id,
+                    created_at,
+                    approved_at,
+                    reviewed_at,
+                    status,
+                    lab_id,
+                    labs ( name ),
+                    profiles ( display_name ),
+                    lab_request_items (
+                        id,
+                        inventory_item_id,
+                        count,
+                        inventory_items (
+                            item_name,
+                            category
+                        )
+                    )
+                `)
                 .ilike('status', '%approved%')
                 .order('created_at', { ascending: false });
 
             if (!error && Array.isArray(data)) {
-                return data;
+                const flattened = [];
+                data.forEach(r => {
+                    const labName = r.labs?.name || 'Laboratory';
+                    const requester = r.profiles?.display_name || 'Lab In-Charge';
+                    const items = (r.lab_request_items && r.lab_request_items.length > 0) ? r.lab_request_items : [{}];
+                    
+                    items.forEach(it => {
+                        const inv = it.inventory_items || {};
+                        flattened.push({
+                            id: r.id,
+                            request_date: r.created_at,
+                            approval_date: r.approved_at || r.reviewed_at || r.created_at,
+                            lab_name: labName,
+                            requested_by: requester,
+                            item_name: inv.item_name || r.item_name || 'Store Item',
+                            category: inv.category || r.category || 'General',
+                            quantity: it.count || r.quantity || 1,
+                            status: r.status || 'Approved'
+                        });
+                    });
+                });
+                return flattened;
             }
         } catch (err) {
-            console.error('Failed to fetch approved requests:', err);
+            console.warn('Joined approved requests fallback notice:', err);
         }
 
         return [];
@@ -183,22 +258,60 @@
                 return data;
             }
         } catch (e) {
-            console.warn('Exception querying v_rejected_requests:', e);
+            console.warn('v_rejected_requests view notice:', e);
         }
 
-        // 2. Fallback to lab_requests where status is Rejected
+        // 2. Fallback: Query lab_requests joined with labs, profiles, lab_request_items & inventory_items
         try {
             const { data, error } = await client
                 .from('lab_requests')
-                .select('*')
+                .select(`
+                    id,
+                    created_at,
+                    reviewed_at,
+                    status,
+                    lab_id,
+                    labs ( name ),
+                    profiles ( display_name ),
+                    lab_request_items (
+                        id,
+                        inventory_item_id,
+                        count,
+                        inventory_items (
+                            item_name,
+                            category
+                        )
+                    )
+                `)
                 .ilike('status', '%rejected%')
                 .order('created_at', { ascending: false });
 
             if (!error && Array.isArray(data)) {
-                return data;
+                const flattened = [];
+                data.forEach(r => {
+                    const labName = r.labs?.name || 'Laboratory';
+                    const requester = r.profiles?.display_name || 'Lab In-Charge';
+                    const items = (r.lab_request_items && r.lab_request_items.length > 0) ? r.lab_request_items : [{}];
+                    
+                    items.forEach(it => {
+                        const inv = it.inventory_items || {};
+                        flattened.push({
+                            id: r.id,
+                            request_date: r.created_at,
+                            rejection_date: r.reviewed_at || r.created_at,
+                            lab_name: labName,
+                            requested_by: requester,
+                            item_name: inv.item_name || r.item_name || 'Store Item',
+                            category: inv.category || r.category || 'General',
+                            quantity: it.count || r.quantity || 1,
+                            status: r.status || 'Rejected'
+                        });
+                    });
+                });
+                return flattened;
             }
         } catch (err) {
-            console.error('Failed to fetch rejected requests:', err);
+            console.warn('Joined rejected requests fallback notice:', err);
         }
 
         return [];
