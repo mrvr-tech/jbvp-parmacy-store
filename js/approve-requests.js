@@ -122,56 +122,62 @@
             const linesByReqId = {};
             if (linesRes.data && Array.isArray(linesRes.data)) {
                 linesRes.data.forEach(li => {
-                    if (!linesByReqId[li.lab_request_id]) linesByReqId[li.lab_request_id] = [];
-                    linesByReqId[li.lab_request_id].push(li);
+                    const reqKey = li.lab_request_id || li.request_id;
+                    if (reqKey) {
+                        if (!linesByReqId[reqKey]) linesByReqId[reqKey] = [];
+                        linesByReqId[reqKey].push(li);
+                    }
                 });
             }
 
             // 3. Assemble unified display rows
             const displayRows = [];
             requests.forEach(r => {
-                const labName = labMap[r.lab_id] || 'Unknown Lab';
+                const labName = labMap[r.lab_id] || '-';
                 const lItems = linesByReqId[r.id] || [];
 
                 if (lItems.length > 0) {
                     lItems.forEach(li => {
-                        const inv = itemMap[li.inventory_item_id] || {};
+                        const invItemId = li.inventory_item_id || li.item_id;
+                        const inv = itemMap[invItemId] || {};
+                        const reqQty = li.requested_qty !== undefined && li.requested_qty !== null ? li.requested_qty : (li.count !== undefined && li.count !== null ? li.count : '-');
+                        const appQty = li.approved_qty !== undefined && li.approved_qty !== null ? li.approved_qty : (r.status === 'Approved' ? reqQty : '-');
+
                         displayRows.push({
                             id: r.id,
                             line_id: li.id,
                             date: r.created_at,
                             request_date: r.created_at,
-                            approval_date: r.approved_at || r.reviewed_at || r.created_at,
-                            rejection_date: r.rejected_at || r.reviewed_at || r.created_at,
+                            approval_date: r.approved_at || r.created_at,
+                            rejection_date: r.rejected_at || r.created_at,
                             lab_id: r.lab_id,
                             lab_name: labName,
-                            requested_by: 'Lab User',
-                            item_id: li.inventory_item_id,
-                            item_name: inv.item_name || 'Store Item',
-                            category: inv.category || 'General',
-                            packages: inv.packages || '',
-                            available_stock: inv.current_quantity || inv.current_stock || 0,
-                            quantity: li.count || 1,
+                            item_id: invItemId,
+                            item_name: inv.item_name || '-',
+                            category: inv.category || '-',
+                            packages: inv.packages || '-',
+                            available_stock: typeof inv.current_quantity === 'number' ? inv.current_quantity : (typeof inv.current_stock === 'number' ? inv.current_stock : null),
+                            quantity: reqQty,
+                            approved_quantity: appQty,
                             status: r.status || 'Pending'
                         });
                     });
                 } else {
-                    const inv = itemMap[r.item_id] || {};
                     displayRows.push({
                         id: r.id,
                         date: r.created_at,
                         request_date: r.created_at,
-                        approval_date: r.approved_at || r.reviewed_at || r.created_at,
-                        rejection_date: r.rejected_at || r.reviewed_at || r.created_at,
+                        approval_date: r.approved_at || r.created_at,
+                        rejection_date: r.rejected_at || r.created_at,
                         lab_id: r.lab_id,
                         lab_name: labName,
-                        requested_by: 'Lab User',
-                        item_id: r.item_id,
-                        item_name: inv.item_name || r.item_name || 'Requisition Item',
-                        category: inv.category || 'General',
-                        packages: inv.packages || '',
-                        available_stock: inv.current_quantity || inv.current_stock || 0,
-                        quantity: r.quantity || 1,
+                        item_id: null,
+                        item_name: '-',
+                        category: '-',
+                        packages: '-',
+                        available_stock: null,
+                        quantity: '-',
+                        approved_quantity: '-',
                         status: r.status || 'Pending'
                     });
                 }
@@ -233,35 +239,35 @@
         }
 
         tbody.innerHTML = requests.map(req => {
-            const reqId = req.id || req.request_id;
-            const labName = req.lab_name || req.lab || 'Lab';
-            const itemName = req.item_name || req.item || 'Item';
-            const reqQty = req.quantity || req.requested_quantity || 1;
-            const availQty = (typeof req.available_stock === 'number')
-                ? req.available_stock
-                : (typeof req.available_quantity === 'number' 
-                    ? req.available_quantity 
-                    : (typeof req.current_quantity === 'number' ? req.current_quantity : (typeof req.quantity_in_stock === 'number' ? req.quantity_in_stock : null)));
+            const reqId = req.id;
+            const labName = req.lab_name || '-';
+            const itemName = req.item_name || '-';
+            const reqQty = req.quantity !== undefined && req.quantity !== null && req.quantity !== '-' ? req.quantity : '-';
+            const availQty = typeof req.available_stock === 'number' ? req.available_stock : null;
             const reqDate = formatDate(req.date || req.created_at);
 
             let availBadge = '';
             let canApprove = true;
 
             if (availQty !== null) {
-                if (availQty >= reqQty) {
-                    availBadge = `<span class="badge badge-success">${availQty} ✓</span>`;
-                } else if (availQty > 0) {
-                    availBadge = `<span class="badge badge-warning">${availQty} (Need: ${reqQty})</span>`;
+                if (typeof reqQty === 'number') {
+                    if (availQty >= reqQty) {
+                        availBadge = `<span class="badge badge-success">${availQty} ✓</span>`;
+                    } else if (availQty > 0) {
+                        availBadge = `<span class="badge badge-warning">${availQty} (Need: ${reqQty})</span>`;
+                    } else {
+                        availBadge = `<span class="badge badge-danger">0 (Need: ${reqQty})</span>`;
+                        canApprove = false;
+                    }
                 } else {
-                    availBadge = `<span class="badge badge-danger">0 (Need: ${reqQty})</span>`;
-                    canApprove = false;
+                    availBadge = `<span class="badge badge-success">${availQty} in stock</span>`;
                 }
             } else {
-                availBadge = `<span class="badge badge-success">Available ✓</span>`;
+                availBadge = `<span style="color: var(--text-soft);">-</span>`;
             }
 
             const approveBtn = canApprove
-                ? `<button class="btn" style="padding: 6px 14px; font-size: 12px; margin: 2px;" onclick="ApproveRequestsModule.handleApprove('${escapeHtml(reqId)}', '${escapeHtml(itemName)}', ${reqQty})">✓ Approve</button>`
+                ? `<button class="btn" style="padding: 6px 14px; font-size: 12px; margin: 2px;" onclick="ApproveRequestsModule.handleApprove('${escapeHtml(reqId)}', '${escapeHtml(itemName)}', ${typeof reqQty === 'number' ? reqQty : 1})">✓ Approve</button>`
                 : `<button class="btn btn-secondary" style="padding: 6px 14px; font-size: 12px; margin: 2px;" disabled title="Insufficient store stock">Stock Unavailable</button>`;
 
             const rejectBtn = `<button class="btn btn-danger" style="padding: 6px 14px; font-size: 12px; margin: 2px;" onclick="ApproveRequestsModule.handleReject('${escapeHtml(reqId)}', '${escapeHtml(itemName)}')">✗ Reject</button>`;
@@ -308,11 +314,11 @@
         }
 
         tbody.innerHTML = requests.map(req => {
-            const labName = req.lab_name || req.lab || 'Lab';
-            const itemName = req.item_name || req.item || 'Item';
-            const reqQty = req.quantity || req.requested_quantity || 1;
-            const appQty = req.approved_quantity !== undefined ? req.approved_quantity : reqQty;
-            const reqDate = formatDate(req.date || req.created_at || req.updated_at);
+            const labName = req.lab_name || '-';
+            const itemName = req.item_name || '-';
+            const reqQty = req.quantity !== undefined && req.quantity !== null ? req.quantity : '-';
+            const appQty = req.approved_quantity !== undefined && req.approved_quantity !== null ? req.approved_quantity : reqQty;
+            const reqDate = formatDate(req.date || req.created_at || req.approved_at);
 
             return `
                 <tr>
@@ -348,10 +354,10 @@
         }
 
         tbody.innerHTML = requests.map(req => {
-            const labName = req.lab_name || req.lab || 'Lab';
-            const itemName = req.item_name || req.item || 'Item';
-            const reqQty = req.quantity || req.requested_quantity || 1;
-            const reqDate = formatDate(req.date || req.created_at || req.updated_at);
+            const labName = req.lab_name || '-';
+            const itemName = req.item_name || '-';
+            const reqQty = req.quantity !== undefined && req.quantity !== null ? req.quantity : '-';
+            const reqDate = formatDate(req.date || req.created_at || req.rejected_at);
 
             return `
                 <tr>

@@ -118,51 +118,94 @@
     }
 
     /**
-     * 2. Fetch Lab Usage Report
+     * 2. Fetch Lab Usage Report (Approved laboratory consumption)
      */
     async function fetchLabUsage() {
         const client = getClient();
 
-        // 1. Try v_lab_usage view
+        // 1. Primary: Query approved requisitions and map details
+        try {
+            const { data: requests, error: reqErr } = await client
+                .from('lab_requests')
+                .select('id, lab_id, status, approved_at, created_at')
+                .ilike('status', '%approved%')
+                .order('created_at', { ascending: false });
+
+            if (!reqErr && Array.isArray(requests) && requests.length > 0) {
+                const [labsRes, itemsRes, linesRes] = await Promise.all([
+                    client.from('labs').select('id, name'),
+                    client.from('inventory_items').select('id, item_name, category'),
+                    client.from('lab_request_items').select('*')
+                ]);
+
+                const labMap = {};
+                (labsRes.data || []).forEach(l => { labMap[l.id] = l.name; });
+
+                const itemMap = {};
+                (itemsRes.data || []).forEach(i => { itemMap[i.id] = i; });
+
+                const linesByReqId = {};
+                (linesRes.data || []).forEach(li => {
+                    const reqKey = li.lab_request_id || li.request_id;
+                    if (reqKey) {
+                        if (!linesByReqId[reqKey]) linesByReqId[reqKey] = [];
+                        linesByReqId[reqKey].push(li);
+                    }
+                });
+
+                const usageRows = [];
+                requests.forEach(r => {
+                    const labName = labMap[r.lab_id] || '-';
+                    const items = linesByReqId[r.id] || [];
+
+                    if (items.length > 0) {
+                        items.forEach(li => {
+                            const invItemId = li.inventory_item_id || li.item_id;
+                            const inv = itemMap[invItemId] || {};
+                            const reqQty = li.requested_qty !== undefined && li.requested_qty !== null ? li.requested_qty : (li.count !== undefined && li.count !== null ? li.count : '-');
+                            const appQty = li.approved_qty !== undefined && li.approved_qty !== null ? li.approved_qty : (reqQty !== '-' ? reqQty : '-');
+
+                            usageRows.push({
+                                id: r.id,
+                                lab_name: labName,
+                                item_name: inv.item_name || '-',
+                                category: inv.category || '-',
+                                packages: '-',
+                                requested_qty: reqQty,
+                                approved_qty: appQty,
+                                date: r.approved_at || r.created_at,
+                                status: 'Approved'
+                            });
+                        });
+                    }
+                });
+
+                return usageRows;
+            }
+        } catch (e) {
+            console.warn('Lab usage query notice:', e);
+        }
+
+        // 2. View fallback: v_lab_usage
         try {
             const { data, error } = await client
                 .from('v_lab_usage')
-                .select('*')
-                .order('date', { ascending: false });
+                .select('*');
 
-            if (!error && Array.isArray(data)) {
-                return data;
+            if (!error && Array.isArray(data) && data.length > 0) {
+                return data.map(item => ({
+                    lab_name: item.lab_name || '-',
+                    item_name: item.item_name || '-',
+                    category: item.category || '-',
+                    packages: '-',
+                    requested_qty: item.count !== undefined ? item.count : '-',
+                    approved_qty: item.count !== undefined ? item.count : '-',
+                    date: null,
+                    status: 'Approved'
+                }));
             }
         } catch (e) {
-            console.warn('v_lab_usage view query failed:', e);
-        }
-
-        // 2. Fallback to v_lab_request_report view
-        try {
-            const { data, error } = await client
-                .from('v_lab_request_report')
-                .select('*')
-                .order('date', { ascending: false });
-
-            if (!error && Array.isArray(data)) {
-                return data;
-            }
-        } catch (e) {
-            console.warn('v_lab_request_report view query failed:', e);
-        }
-
-        // 3. Fallback to lab_requests table
-        try {
-            const { data, error } = await client
-                .from('lab_requests')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (!error && Array.isArray(data)) {
-                return data;
-            }
-        } catch (err) {
-            console.error('Failed to fetch lab usage report:', err);
+            console.warn('v_lab_usage query notice:', e);
         }
 
         return [];
@@ -226,11 +269,11 @@
 
         tbody.innerHTML = items.map((item, idx) => {
             const srNo = idx + 1;
-            const itemName = item.item_name || 'Item';
+            const itemName = item.item_name || '-';
             const packages = item.packages || item.package || item.package_size || '-';
-            const qty = item.quantity || 0;
-            const price = parseFloat(item.price || 0).toFixed(2);
-            const tax = parseFloat(item.tax || 0).toFixed(2);
+            const qty = item.quantity !== undefined && item.quantity !== null ? item.quantity : '-';
+            const price = item.price !== undefined && item.price !== null ? parseFloat(item.price).toFixed(2) : '-';
+            const tax = item.tax !== undefined && item.tax !== null ? parseFloat(item.tax).toFixed(2) : '-';
             const billNo = item.bill_no || '-';
             const date = formatDate(item.date || item.created_at);
             const expFormatted = formatDate(item.expiry_date);
@@ -258,8 +301,8 @@
                     <td><strong>${escapeHtml(itemName)}</strong></td>
                     <td>${escapeHtml(packages)}</td>
                     <td><strong>${qty}</strong></td>
-                    <td>₹${price}</td>
-                    <td>₹${tax}</td>
+                    <td>${price !== '-' ? `₹${price}` : '-'}</td>
+                    <td>${tax !== '-' ? `₹${tax}` : '-'}</td>
                     <td>${escapeHtml(billNo)}</td>
                     <td>${date}</td>
                     <td>${expiryBadge}</td>
@@ -270,7 +313,7 @@
     }
 
     /**
-     * Render Lab Usage Table
+     * Render Lab Usage Table (Only Approved Issues)
      */
     function renderLabUsageTable(items) {
         const tbody = document.getElementById('labUsageTableBody');
@@ -280,7 +323,7 @@
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7" style="text-align: center; padding: 25px; color: #6a7a6f;">
-                        No laboratory requisition records found matching search criteria.
+                        No laboratory consumption records recorded yet.
                     </td>
                 </tr>
             `;
@@ -288,20 +331,12 @@
         }
 
         tbody.innerHTML = items.map(item => {
-            const labName = item.lab_name || item.lab || 'Lab';
-            const itemName = item.item_name || item.item || 'Item';
-            const packages = item.packages || item.package || item.package_size || '-';
-            const reqQty = item.quantity || item.requested_quantity || 1;
-            const appQty = item.approved_quantity !== undefined ? item.approved_quantity : (item.status === 'Approved' ? reqQty : 0);
-            const date = formatDate(item.date || item.created_at);
-            const rawStatus = (item.status || 'Pending').toLowerCase();
-
-            let statusBadge = `<span class="badge badge-warning">⏳ Pending</span>`;
-            if (rawStatus.includes('approv')) {
-                statusBadge = `<span class="badge badge-success">✓ Approved</span>`;
-            } else if (rawStatus.includes('reject')) {
-                statusBadge = `<span class="badge badge-danger">✗ Rejected</span>`;
-            }
+            const labName = item.lab_name || '-';
+            const itemName = item.item_name || '-';
+            const packages = item.packages || '-';
+            const reqQty = item.requested_qty !== undefined && item.requested_qty !== null ? item.requested_qty : '-';
+            const appQty = item.approved_qty !== undefined && item.approved_qty !== null ? item.approved_qty : (item.approved_quantity !== undefined && item.approved_quantity !== null ? item.approved_quantity : reqQty);
+            const date = formatDate(item.date || item.approved_at || item.created_at);
 
             return `
                 <tr>
@@ -311,7 +346,7 @@
                     <td>${reqQty}</td>
                     <td><strong>${appQty}</strong></td>
                     <td>${date}</td>
-                    <td>${statusBadge}</td>
+                    <td><span class="badge badge-success">✓ Approved</span></td>
                 </tr>
             `;
         }).join('');
@@ -336,13 +371,13 @@
         }
 
         tbody.innerHTML = items.map(item => {
-            const itemName = item.item_name || 'Item';
+            const itemName = item.item_name || '-';
             const packages = item.packages || item.package || item.package_size || '-';
-            const availQty = (typeof item.available_quantity === 'number') 
-                ? item.available_quantity 
-                : (typeof item.quantity === 'number' ? item.quantity : (item.current_quantity || 0));
-            const usedQty = (typeof item.used_quantity === 'number') ? item.used_quantity : 0;
-            const totalQty = (typeof item.total_quantity === 'number') ? item.total_quantity : (availQty + usedQty);
+            const availQty = typeof item.current_quantity === 'number'
+                ? item.current_quantity
+                : (typeof item.quantity === 'number' ? item.quantity : (typeof item.available_quantity === 'number' ? item.available_quantity : 0));
+            const usedQty = typeof item.used_quantity === 'number' ? item.used_quantity : 0;
+            const totalQty = typeof item.total_quantity === 'number' ? item.total_quantity : (availQty + usedQty);
             const expFormatted = formatDate(item.expiry_date);
 
             let statusBadge = `<span class="badge badge-success">In Stock</span>`;
@@ -359,11 +394,11 @@
             return `
                 <tr>
                     <td><strong>${escapeHtml(itemName)}</strong></td>
+                    <td>${escapeHtml(item.category || '-')}</td>
                     <td>${escapeHtml(packages)}</td>
-                    <td>${totalQty}</td>
-                    <td>${usedQty}</td>
                     <td>${qtyBadge}</td>
-                    <td><span class="badge badge-success">${expFormatted}</span></td>
+                    <td>${usedQty}</td>
+                    <td><strong>${totalQty}</strong></td>
                     <td>${statusBadge}</td>
                 </tr>
             `;
