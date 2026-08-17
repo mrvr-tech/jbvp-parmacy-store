@@ -107,6 +107,45 @@
     }
 
     /**
+     * Fetch the next serial number (sr_no) from inventory_entries
+     * Auto-increments MAX(sr_no) + 1, or defaults to 1 if empty.
+     */
+    async function fetchNextSrNo() {
+        const client = getClient();
+        try {
+            const { data, error } = await client
+                .from('inventory_entries')
+                .select('sr_no')
+                .order('sr_no', { ascending: false })
+                .limit(1);
+
+            if (!error && Array.isArray(data) && data.length > 0) {
+                const max = parseInt(data[0].sr_no, 10);
+                if (!isNaN(max) && max >= 1) {
+                    return max + 1;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not query max sr_no, defaulting to 1:', e);
+        }
+        return 1;
+    }
+
+    /**
+     * Update the auto-generated Sr. No. input field on the form
+     */
+    async function updateSrNoField() {
+        const srNoInput = document.getElementById('sr_no');
+        if (!srNoInput) return;
+        try {
+            const nextSr = await fetchNextSrNo();
+            srNoInput.value = nextSr;
+        } catch {
+            srNoInput.value = 1;
+        }
+    }
+
+    /**
      * Call public.add_inventory_entry RPC on Supabase
      * Supports both p_ prefixed parameter signatures and standard naming.
      */
@@ -126,6 +165,12 @@
         const vendorAddress = (formData.vendor_address || '').trim();
         const vendorPan = (formData.vendor_pan || '').trim().toUpperCase();
 
+        // Auto-fetch or calculate next valid Sr. No.
+        let srNo = parseInt(formData.sr_no, 10);
+        if (isNaN(srNo) || srNo < 1) {
+            srNo = await fetchNextSrNo();
+        }
+
         // 1. Try canonical database signature (_ prefix with _sr_no)
         const payloadUnderscore = {
             _category: category,
@@ -140,7 +185,7 @@
             _vendor_name: vendorName,
             _vendor_address: vendorAddress,
             _vendor_pan: vendorPan,
-            _sr_no: null
+            _sr_no: srNo
         };
 
         let result = await client.rpc('add_inventory_entry', payloadUnderscore);
@@ -162,7 +207,8 @@
                     p_expiry_date: expiryDate,
                     p_vendor_name: vendorName,
                     p_vendor_address: vendorAddress,
-                    p_vendor_pan: vendorPan
+                    p_vendor_pan: vendorPan,
+                    p_sr_no: srNo
                 };
 
                 result = await client.rpc('add_inventory_entry', payloadPrefixed);
@@ -184,7 +230,8 @@
                             expiry_date: expiryDate,
                             vendor_name: vendorName,
                             vendor_address: vendorAddress,
-                            vendor_pan: vendorPan
+                            vendor_pan: vendorPan,
+                            sr_no: srNo
                         };
 
                         result = await client.rpc('add_inventory_entry', payloadUnprefixed);
@@ -218,7 +265,6 @@
                             total_quantity: newTotal,
                             price: price,
                             tax: tax,
-                            expiry_date: expiryDate,
                             updated_at: new Date().toISOString()
                         })
                         .eq('id', itemId);
@@ -232,8 +278,7 @@
                             current_stock: quantity,
                             total_quantity: quantity,
                             price: price,
-                            tax: tax,
-                            expiry_date: expiryDate
+                            tax: tax
                         }])
                         .select()
                         .single();
@@ -247,6 +292,7 @@
                 const { data: entryData, error: entryErr } = await client
                     .from('inventory_entries')
                     .insert([{
+                        sr_no: srNo,
                         item_id: itemId,
                         category: category,
                         item_name: itemName,
@@ -303,6 +349,7 @@
 
         // Collect form data
         const formData = {
+            sr_no: document.getElementById('sr_no')?.value || '',
             category: document.getElementById('category')?.value || '',
             item_name: document.getElementById('item_name')?.value || '',
             packages: document.getElementById('packages')?.value || '',
@@ -344,7 +391,7 @@
                         <div>
                             <strong>✅ Item Saved Successfully!</strong>
                             <p style="margin-top: 4px; font-size: 0.92rem;">
-                                Added <strong>${escapeHtml(formData.quantity)} unit(s)</strong> of <strong>${escapeHtml(formData.item_name)}</strong> to store inventory.
+                                Added <strong>${escapeHtml(formData.quantity)} unit(s)</strong> of <strong>${escapeHtml(formData.item_name)}</strong> (Sr. No. #${escapeHtml(formData.sr_no || '1')}) to store inventory.
                             </p>
                         </div>
                         <div style="display: flex; gap: 8px;">
@@ -356,8 +403,9 @@
                 successAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
-            // Reset form for next entry
+            // Reset form for next entry & auto-fetch new Sr. No.
             resetForm();
+            await updateSrNoField();
 
         } catch (err) {
             console.error('RPC Error executing add_inventory_entry:', err);
@@ -430,10 +478,15 @@
             future.setFullYear(future.getFullYear() + 2);
             expiryInput.value = future.toISOString().split('T')[0];
         }
+
+        // Automatically fetch and show next Sr. No.
+        updateSrNoField();
     }
 
     return {
         init,
+        fetchNextSrNo,
+        updateSrNoField,
         submitInventoryEntry,
         handleFormSubmit,
         validateForm,
