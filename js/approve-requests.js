@@ -237,9 +237,11 @@
             const labName = req.lab_name || req.lab || 'Lab';
             const itemName = req.item_name || req.item || 'Item';
             const reqQty = req.quantity || req.requested_quantity || 1;
-            const availQty = (typeof req.available_quantity === 'number') 
-                ? req.available_quantity 
-                : (typeof req.current_quantity === 'number' ? req.current_quantity : (typeof req.quantity_in_stock === 'number' ? req.quantity_in_stock : null));
+            const availQty = (typeof req.available_stock === 'number')
+                ? req.available_stock
+                : (typeof req.available_quantity === 'number' 
+                    ? req.available_quantity 
+                    : (typeof req.current_quantity === 'number' ? req.current_quantity : (typeof req.quantity_in_stock === 'number' ? req.quantity_in_stock : null)));
             const reqDate = formatDate(req.date || req.created_at);
 
             let availBadge = '';
