@@ -214,15 +214,12 @@
             const { data: reqData, error: reqErr } = await client
                 .from('lab_requests')
                 .select('id, status')
-                .ilike('status', '%pending%');
+                .eq('status', 'Pending');
 
             if (!reqErr && Array.isArray(reqData)) {
                 pendingRequestsCount = reqData.length;
-            } else {
-                const { data: pendingData } = await client.from('v_pending_requests').select('id');
-                if (Array.isArray(pendingData)) {
-                    pendingRequestsCount = pendingData.length;
-                }
+            } else if (reqErr) {
+                console.error('Pending requests count error:', reqErr);
             }
         } catch (e) {
             console.warn('Pending requests query error:', e);

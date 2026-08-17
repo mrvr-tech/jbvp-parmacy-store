@@ -128,7 +128,7 @@
             const { data: requests, error: reqErr } = await client
                 .from('lab_requests')
                 .select('id, lab_id, status, approved_at, created_at')
-                .ilike('status', '%approved%')
+                .eq('status', 'Approved')
                 .order('created_at', { ascending: false });
 
             if (!reqErr && Array.isArray(requests) && requests.length > 0) {

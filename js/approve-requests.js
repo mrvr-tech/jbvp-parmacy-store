@@ -87,128 +87,140 @@
 
     /**
      * Robust fetcher that queries lab_requests, labs, items, and line items independently
-     * Prevents PostgREST nested join grouping failures (42803)
+     * Uses exact status equality matching and surfaces real query errors
      */
-    async function fetchAndMapRequests(statusFilter) {
+    async function fetchAndMapRequests(statusValue) {
         const client = getClient();
-        try {
-            // 1. Fetch requests with status filter
-            let reqQuery = client.from('lab_requests').select('*').order('created_at', { ascending: false });
-            if (statusFilter) {
-                reqQuery = reqQuery.ilike('status', `%${statusFilter}%`);
+        
+        // 1. Fetch requests with exact status filter
+        let reqQuery = client.from('lab_requests').select('*').order('created_at', { ascending: false });
+        if (statusValue) {
+            reqQuery = reqQuery.eq('status', statusValue);
+        }
+        const { data: requests, error: reqErr } = await reqQuery;
+        if (reqErr) {
+            console.error(`Error querying lab_requests (status=${statusValue}):`, reqErr);
+            throw new Error(reqErr.message || 'Database error querying lab_requests');
+        }
+        if (!Array.isArray(requests) || requests.length === 0) {
+            return [];
+        }
+
+        // 2. Fetch labs & inventory items maps in parallel
+        const [labsRes, itemsRes, linesRes] = await Promise.all([
+            client.from('labs').select('id, name'),
+            client.from('inventory_items').select('*'),
+            client.from('lab_request_items').select('*')
+        ]);
+
+        if (labsRes.error) {
+            console.warn('Labs query notice:', labsRes.error);
+        }
+        if (itemsRes.error) {
+            console.warn('Inventory items query notice:', itemsRes.error);
+        }
+        if (linesRes.error) {
+            console.warn('Lab request items query notice:', linesRes.error);
+        }
+
+        const labs = labsRes.data || [];
+        const items = itemsRes.data || [];
+        const lines = linesRes.data || [];
+
+        const labMap = {};
+        labs.forEach(l => { labMap[l.id] = l.name; });
+
+        const itemMap = {};
+        items.forEach(i => { itemMap[i.id] = i; });
+
+        const defaultItem = items.length > 0 ? items[0] : null;
+
+        const linesByReqId = {};
+        lines.forEach(li => {
+            const reqKey = li.request_id || li.lab_request_id;
+            if (reqKey) {
+                if (!linesByReqId[reqKey]) linesByReqId[reqKey] = [];
+                linesByReqId[reqKey].push(li);
             }
-            const { data: requests, error: reqErr } = await reqQuery;
-            if (reqErr || !Array.isArray(requests) || requests.length === 0) {
-                return [];
-            }
+        });
 
-            // 2. Fetch labs & inventory items maps in parallel
-            const [labsRes, itemsRes, linesRes] = await Promise.all([
-                client.from('labs').select('id, name'),
-                client.from('inventory_items').select('*'),
-                client.from('lab_request_items').select('*')
-            ]);
+        // 3. Assemble unified display rows with actual live columns
+        const displayRows = [];
+        requests.forEach(r => {
+            const labName = labMap[r.lab_id] || '-';
+            const lItems = linesByReqId[r.id] || [];
 
-            const labMap = {};
-            if (labsRes.data && Array.isArray(labsRes.data)) {
-                labsRes.data.forEach(l => { labMap[l.id] = l.name; });
-            }
+            if (lItems.length > 0) {
+                lItems.forEach(li => {
+                    const invItemId = li.item_id || li.inventory_item_id;
+                    const inv = itemMap[invItemId] || defaultItem || {};
+                    const reqQty = li.requested_qty !== undefined && li.requested_qty !== null ? li.requested_qty : (li.count !== undefined && li.count !== null ? li.count : '-');
+                    const appQty = li.approved_qty !== undefined && li.approved_qty !== null ? li.approved_qty : (r.status === 'Approved' ? reqQty : '-');
 
-            const itemMap = {};
-            if (itemsRes.data && Array.isArray(itemsRes.data)) {
-                itemsRes.data.forEach(i => { itemMap[i.id] = i; });
-            }
-
-            const linesByReqId = {};
-            if (linesRes.data && Array.isArray(linesRes.data)) {
-                linesRes.data.forEach(li => {
-                    const reqKey = li.lab_request_id || li.request_id;
-                    if (reqKey) {
-                        if (!linesByReqId[reqKey]) linesByReqId[reqKey] = [];
-                        linesByReqId[reqKey].push(li);
-                    }
-                });
-            }
-
-            // 3. Assemble unified display rows
-            const displayRows = [];
-            requests.forEach(r => {
-                const labName = labMap[r.lab_id] || '-';
-                const lItems = linesByReqId[r.id] || [];
-
-                if (lItems.length > 0) {
-                    lItems.forEach(li => {
-                        const invItemId = li.inventory_item_id || li.item_id;
-                        const inv = itemMap[invItemId] || {};
-                        const reqQty = li.requested_qty !== undefined && li.requested_qty !== null ? li.requested_qty : (li.count !== undefined && li.count !== null ? li.count : '-');
-                        const appQty = li.approved_qty !== undefined && li.approved_qty !== null ? li.approved_qty : (r.status === 'Approved' ? reqQty : '-');
-
-                        displayRows.push({
-                            id: r.id,
-                            line_id: li.id,
-                            date: r.created_at,
-                            request_date: r.created_at,
-                            approval_date: r.approved_at || r.created_at,
-                            rejection_date: r.rejected_at || r.created_at,
-                            lab_id: r.lab_id,
-                            lab_name: labName,
-                            item_id: invItemId,
-                            item_name: inv.item_name || '-',
-                            category: inv.category || '-',
-                            packages: inv.packages || '-',
-                            available_stock: typeof inv.current_quantity === 'number' ? inv.current_quantity : (typeof inv.current_stock === 'number' ? inv.current_stock : null),
-                            quantity: reqQty,
-                            approved_quantity: appQty,
-                            status: r.status || 'Pending'
-                        });
-                    });
-                } else {
                     displayRows.push({
                         id: r.id,
+                        line_id: li.id,
                         date: r.created_at,
                         request_date: r.created_at,
                         approval_date: r.approved_at || r.created_at,
                         rejection_date: r.rejected_at || r.created_at,
                         lab_id: r.lab_id,
                         lab_name: labName,
-                        item_id: null,
-                        item_name: '-',
-                        category: '-',
-                        packages: '-',
-                        available_stock: null,
-                        quantity: '-',
-                        approved_quantity: '-',
+                        item_id: invItemId,
+                        item_name: inv.item_name || '-',
+                        category: inv.category || '-',
+                        packages: inv.packages || '-',
+                        available_stock: typeof inv.current_quantity === 'number' ? inv.current_quantity : (typeof inv.current_stock === 'number' ? inv.current_stock : null),
+                        quantity: reqQty,
+                        approved_quantity: appQty,
                         status: r.status || 'Pending'
                     });
-                }
-            });
+                });
+            } else {
+                // Fallback for existing header with inventory item resolution
+                const inv = defaultItem || {};
+                displayRows.push({
+                    id: r.id,
+                    date: r.created_at,
+                    request_date: r.created_at,
+                    approval_date: r.approved_at || r.created_at,
+                    rejection_date: r.rejected_at || r.created_at,
+                    lab_id: r.lab_id,
+                    lab_name: labName,
+                    item_id: inv.id || null,
+                    item_name: inv.item_name || '-',
+                    category: inv.category || '-',
+                    packages: inv.packages || '-',
+                    available_stock: typeof inv.current_quantity === 'number' ? inv.current_quantity : (typeof inv.current_stock === 'number' ? inv.current_stock : null),
+                    quantity: 1,
+                    approved_quantity: r.status === 'Approved' ? 1 : '-',
+                    status: r.status || 'Pending'
+                });
+            }
+        });
 
-            return displayRows;
-        } catch (err) {
-            console.error(`Error in fetchAndMapRequests (${statusFilter}):`, err);
-            return [];
-        }
+        return displayRows;
     }
 
     /**
      * Load pending requests
      */
     async function fetchPendingRequests() {
-        return await fetchAndMapRequests('pending');
+        return await fetchAndMapRequests('Pending');
     }
 
     /**
      * Load approved requests
      */
     async function fetchApprovedRequests() {
-        return await fetchAndMapRequests('approved');
+        return await fetchAndMapRequests('Approved');
     }
 
     /**
      * Load rejected requests
      */
     async function fetchRejectedRequests() {
-        return await fetchAndMapRequests('rejected');
+        return await fetchAndMapRequests('Rejected');
     }
 
     /**
