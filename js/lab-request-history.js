@@ -57,16 +57,13 @@
      */
     async function fetchLabHistory(profile, user) {
         const client = getClient();
-        const labName = profile?.lab_name;
-        const labId = profile?.lab_id || profile?.id || user?.id;
 
         // 1. Try v_lab_request_report view
         try {
-            let query = client.from('v_lab_request_report').select('*');
-            if (labName) {
-                query = query.eq('lab_name', labName);
-            }
-            const { data, error } = await query.order('date', { ascending: false });
+            const { data, error } = await client
+                .from('v_lab_request_report')
+                .select('*')
+                .order('date', { ascending: false });
 
             if (!error && Array.isArray(data)) {
                 return data;
@@ -75,23 +72,70 @@
             console.warn('v_lab_request_report query failed:', e);
         }
 
-        // 2. Fallback to lab_requests table
+        // 2. Fallback: Query lab_requests joined with lab_request_items & inventory_items
         try {
-            let query = client.from('lab_requests').select('*');
-            if (labName) {
-                query = query.eq('lab_name', labName);
-            } else if (labId) {
-                query = query.or(`lab_id.eq.${labId},user_id.eq.${user?.id}`);
-            }
-            const { data, error } = await query.order('created_at', { ascending: false });
+            const { data, error } = await client
+                .from('lab_requests')
+                .select(`
+                    id,
+                    created_at,
+                    approved_at,
+                    status,
+                    lab_id,
+                    lab_request_items (
+                        id,
+                        count,
+                        status,
+                        inventory_items (
+                            item_name,
+                            category
+                        )
+                    )
+                `)
+                .order('created_at', { ascending: false });
 
             if (!error && Array.isArray(data)) {
-                return data;
+                const flattened = [];
+                data.forEach(r => {
+                    const items = (r.lab_request_items && r.lab_request_items.length > 0) 
+                        ? r.lab_request_items 
+                        : [{}];
+
+                    items.forEach(it => {
+                        flattened.push({
+                            id: r.id,
+                            date: r.created_at,
+                            approved_at: r.approved_at,
+                            item_name: it.inventory_items?.item_name || 'Store Item',
+                            quantity: it.count || 1,
+                            status: r.status || 'Pending'
+                        });
+                    });
+                });
+                return flattened;
             }
-            if (error) throw error;
+        } catch (err) {
+            console.warn('Joined lab_requests query failed:', err);
+        }
+
+        // 3. Fallback: Query simple lab_requests table
+        try {
+            const { data, error } = await client
+                .from('lab_requests')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (!error && Array.isArray(data)) {
+                return data.map(r => ({
+                    id: r.id,
+                    date: r.created_at,
+                    item_name: r.item_name || 'Requisition Item',
+                    quantity: r.quantity || 1,
+                    status: r.status || 'Pending'
+                }));
+            }
         } catch (err) {
             console.error('Failed to fetch lab request history:', err);
-            throw err;
         }
 
         return [];
