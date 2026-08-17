@@ -264,17 +264,140 @@
     }
 
     /**
+     * Create a Laboratory with Edge Function first and direct database insert fallback
+     */
+    async function createLabDirect(labName) {
+        const cleanName = (labName || '').trim();
+        if (!cleanName) throw new Error('Laboratory name is required.');
+
+        try {
+            const result = await invokeAdminFunction('create-lab', { name: cleanName });
+            return result.lab || { name: cleanName };
+        } catch (edgeErr) {
+            console.warn('Edge function create-lab failed, falling back to direct table insert:', edgeErr.message);
+            const client = getClient();
+            let insertRes = await client.from('labs').insert([{ name: cleanName }]).select().single();
+            if (insertRes.error) {
+                insertRes = await client.from('labs').insert([{ lab_name: cleanName }]).select().single();
+            }
+            if (insertRes.error) {
+                throw new Error(insertRes.error.message || edgeErr.message);
+            }
+            return insertRes.data;
+        }
+    }
+
+    /**
      * Populate Lab Selection dropdown inside Add User Modal
      */
     function populateLabDropdown(labs) {
         const select = document.getElementById('userLabSelect');
+        const noLabsNotice = document.getElementById('noLabsNotice');
         if (!select) return;
 
+        if (!labs || labs.length === 0) {
+            select.innerHTML = '<option value="">-- No Labs Found (Add a lab first) --</option>';
+            if (noLabsNotice) noLabsNotice.style.display = 'block';
+            return;
+        }
+
+        if (noLabsNotice) noLabsNotice.style.display = 'none';
         select.innerHTML = '<option value="">-- Select Laboratory --</option>' +
             labs.map(lab => {
                 const name = lab.name || lab.lab_name || `Lab ${lab.id}`;
                 return `<option value="${lab.id}">${escapeHtml(name)}</option>`;
             }).join('');
+    }
+
+    /**
+     * Quick Add Lab Prompt
+     */
+    async function quickAddLabPrompt() {
+        const defaultName = `Lab ${(cachedLabs ? cachedLabs.length : 0) + 1}`;
+        const inputName = prompt('Enter New Laboratory Name (e.g. Lab 1, Lab 2 - Pharmacology):', defaultName);
+        if (!inputName || !inputName.trim()) return;
+
+        try {
+            showAlert('success', `⏳ Creating laboratory "${inputName.trim()}"...`);
+            const newLab = await createLabDirect(inputName.trim());
+            showAlert('success', `Laboratory "${inputName.trim()}" added successfully!`);
+            await loadData();
+            
+            // Auto-select newly created lab in dropdown
+            const select = document.getElementById('userLabSelect');
+            if (select && newLab && newLab.id) {
+                select.value = newLab.id;
+            }
+        } catch (err) {
+            console.error('Quick Add Lab error:', err);
+            showAlert('error', 'Failed to add laboratory: ' + (err.message || err));
+        }
+    }
+
+    /**
+     * Seed Standard Pharmacy College Laboratories (1 to 17)
+     */
+    async function seedStandardLabs() {
+        const standardNames = [
+            'Lab 1 - Pharmaceutics',
+            'Lab 2 - Pharmaceutical Chemistry',
+            'Lab 3 - Pharmacology',
+            'Lab 4 - Pharmacognosy',
+            'Lab 5 - Pharmaceutical Analysis',
+            'Lab 6 - Microbiology & Biotechnology',
+            'Lab 7 - Hospital & Clinical Pharmacy',
+            'Lab 8 - Biochemistry',
+            'Lab 9 - Human Anatomy & Physiology',
+            'Lab 10 - Physical Pharmacy',
+            'Lab 11 - Medicinal Chemistry',
+            'Lab 12 - Pharmacokinetics',
+            'Lab 13 - Dosage Form Design',
+            'Lab 14 - Regulatory Affairs & QC',
+            'Lab 15 - Research & Project Lab',
+            'Lab 16 - Central Instrumentation Lab',
+            'Lab 17 - Computer Applications Lab'
+        ];
+
+        if (!confirm(`Do you want to initialize all ${standardNames.length} standard college laboratories?\n\nThis will add missing labs (Lab 1 to Lab 17) to the database.`)) {
+            return;
+        }
+
+        showAlert('success', `⏳ Provisioning standard laboratories...`);
+
+        try {
+            const client = getClient();
+            const existingNames = new Set(
+                (cachedLabs || []).map(l => (l.name || l.lab_name || '').toLowerCase().trim())
+            );
+
+            const toInsert = standardNames
+                .filter(name => !existingNames.has(name.toLowerCase().trim()))
+                .map(name => ({ name }));
+
+            if (toInsert.length === 0) {
+                showAlert('success', 'All standard college laboratories are already configured in the database.');
+                return;
+            }
+
+            // Batch insert directly into labs table
+            let insertRes = await client.from('labs').insert(toInsert).select();
+            if (insertRes.error) {
+                // Fallback to lab_name column
+                const toInsertFallback = toInsert.map(i => ({ lab_name: i.name }));
+                insertRes = await client.from('labs').insert(toInsertFallback).select();
+            }
+
+            if (insertRes.error) {
+                throw insertRes.error;
+            }
+
+            showAlert('success', `✅ Successfully initialized ${toInsert.length} college laboratories!`);
+            await loadData();
+
+        } catch (err) {
+            console.error('Seed Standard Labs error:', err);
+            showAlert('error', 'Failed to seed laboratories: ' + (err.message || err));
+        }
     }
 
     /**
@@ -331,7 +454,9 @@
 
         if (userType === 'lab' && !labId) {
             if (errorEl) {
-                errorEl.textContent = 'Please select a laboratory for this Lab user.';
+                errorEl.textContent = (cachedLabs.length === 0)
+                    ? 'No laboratories exist. Click "+ Quick Add Lab" above to create one first.'
+                    : 'Please select an assigned laboratory for this Lab user.';
                 errorEl.style.display = 'block';
             }
             return;
@@ -342,14 +467,50 @@
             submitBtn.textContent = '⏳ Creating User...';
         }
 
+        const client = getClient();
+
         try {
-            const result = await invokeAdminFunction('create-user', {
-                display_name: displayName,
-                email: email,
-                password: password,
-                user_type: userType,
-                lab_id: userType === 'lab' ? labId : null
-            });
+            let result;
+            try {
+                result = await invokeAdminFunction('create-user', {
+                    display_name: displayName,
+                    email: email,
+                    password: password,
+                    user_type: userType,
+                    lab_id: userType === 'lab' ? labId : null
+                });
+            } catch (edgeErr) {
+                console.warn('Edge function create-user failed, attempting direct signup & profile creation fallback:', edgeErr.message);
+                
+                // Fallback: Supabase signUp and profile insert
+                const { data: signUpData, error: signUpErr } = await client.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            role: userType,
+                            display_name: displayName,
+                            lab_id: userType === 'lab' ? labId : null
+                        }
+                    }
+                });
+
+                if (signUpErr || !signUpData.user) {
+                    throw new Error(signUpErr?.message || edgeErr.message);
+                }
+
+                // Insert into public.profiles
+                await client.from('profiles').upsert({
+                    id: signUpData.user.id,
+                    role: userType,
+                    lab_id: userType === 'lab' ? labId : null,
+                    display_name: displayName
+                });
+
+                result = {
+                    message: `User "${displayName}" created successfully!`
+                };
+            }
 
             closeModal('addUserModal');
             if (form) form.reset();
@@ -416,10 +577,10 @@
         }
 
         try {
-            const result = await invokeAdminFunction('create-lab', { name: labName });
+            await createLabDirect(labName);
             closeModal('addLabModal');
             if (form) form.reset();
-            showAlert('success', result.message || `Laboratory "${labName}" created successfully!`);
+            showAlert('success', `Laboratory "${labName}" created successfully!`);
             await loadData();
 
         } catch (err) {
@@ -525,6 +686,9 @@
         handleRemoveUser,
         handleAddLabSubmit,
         handleRemoveLab,
+        createLabDirect,
+        quickAddLabPrompt,
+        seedStandardLabs,
         invokeAdminFunction
     };
 }));
