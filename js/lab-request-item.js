@@ -233,52 +233,56 @@
             const labId = profile.lab_id || profile.id || user.id;
             const today = new Date().toISOString().split('T')[0];
 
-            // 1. Insert into lab_requests table
-            const reqPayload = {
+            // 1. Insert requisition header into lab_requests table
+            const headerPayload = {
                 lab_id: labId,
-                lab_name: labName,
-                user_id: user.id,
-                item_id: isNaN(Number(itemId)) ? null : Number(itemId),
-                item_name: itemName,
-                quantity: qty,
                 status: 'Pending',
-                date: today
+                requested_by: user.id
             };
 
-            // Attempt insert into lab_requests
-            const { data: reqInsertData, error: reqInsertErr } = await client
+            let reqId = null;
+            let reqInsertData = null;
+
+            const { data: headerData, error: headerErr } = await client
                 .from('lab_requests')
-                .insert([reqPayload])
+                .insert([headerPayload])
                 .select();
 
-            if (reqInsertErr) {
-                // If lab_requests has different column constraints, retry with core fields
-                console.warn('First insert attempt error, trying minimal payload:', reqInsertErr.message);
-                const minimalPayload = {
-                    lab_name: labName,
-                    item_name: itemName,
+            if (headerErr) {
+                console.warn('Header insert error, trying flat payload fallback:', headerErr.message);
+                const flatPayload = {
+                    lab_id: labId,
+                    item_id: itemId,
                     quantity: qty,
-                    status: 'Pending'
+                    status: 'Pending',
+                    requested_by: user.id
                 };
-                const { error: minErr } = await client
+                const { data: flatData, error: flatErr } = await client
                     .from('lab_requests')
-                    .insert([minimalPayload]);
-                if (minErr) throw minErr;
+                    .insert([flatPayload])
+                    .select();
+
+                if (flatErr) throw (headerErr || flatErr);
+                reqInsertData = flatData;
+            } else {
+                reqInsertData = headerData;
             }
 
-            // If lab_request_items table exists in schema, create line item row
             if (reqInsertData && reqInsertData.length > 0) {
-                const newReqId = reqInsertData[0].id;
+                reqId = reqInsertData[0].id;
+            }
+
+            // 2. Insert line item detail into lab_request_items
+            if (reqId) {
                 try {
                     await client.from('lab_request_items').insert([{
-                        request_id: newReqId,
-                        item_id: isNaN(Number(itemId)) ? null : Number(itemId),
-                        item_name: itemName,
-                        quantity: qty
+                        lab_request_id: reqId,
+                        inventory_item_id: itemId,
+                        count: qty,
+                        status: 'Pending'
                     }]);
-                } catch (subErr) {
-                    // Ignore if lab_request_items is not required/used
-                    console.info('lab_request_items line item insert skipped or unneeded:', subErr);
+                } catch (lineErr) {
+                    console.info('lab_request_items line item insert notice:', lineErr);
                 }
             }
 
