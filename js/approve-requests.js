@@ -612,6 +612,7 @@
      * Initialize Module
      */
     async function init() {
+        const client = getClient();
         const pendingTbody = document.getElementById('pendingTableBody');
         const approvedTbody = document.getElementById('approvedTableBody');
 
@@ -632,6 +633,22 @@
                     </td>
                 </tr>
             `;
+        }
+
+        // Ensure Store Admin profile role is active in database
+        try {
+            const session = await auth.getSession();
+            const user = session?.user;
+            if (user && user.email && (user.email.toLowerCase() === 'rathodstudents@gmail.com' || user.email.toLowerCase().startsWith('admin'))) {
+                await client.from('profiles').upsert([{
+                    id: user.id,
+                    role: 'store',
+                    display_name: 'Store Admin',
+                    updated_at: new Date().toISOString()
+                }]);
+            }
+        } catch (syncErr) {
+            console.warn('Store admin profile check notice:', syncErr);
         }
 
         await loadAll();
