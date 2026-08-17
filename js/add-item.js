@@ -158,7 +158,85 @@
         }
 
         if (result.error) {
-            throw result.error;
+            console.warn('RPC add_inventory_entry failed, attempting direct table insert fallback:', result.error.message);
+            
+            try {
+                // 1. Find or create item in inventory_items
+                let itemId = null;
+                const { data: existingItems } = await client
+                    .from('inventory_items')
+                    .select('*')
+                    .ilike('item_name', itemName)
+                    .limit(1);
+
+                if (existingItems && existingItems.length > 0) {
+                    const existing = existingItems[0];
+                    itemId = existing.id;
+                    const newStock = (parseInt(existing.current_stock, 10) || 0) + quantity;
+                    const newTotal = (parseInt(existing.total_quantity, 10) || 0) + quantity;
+
+                    await client
+                        .from('inventory_items')
+                        .update({
+                            current_stock: newStock,
+                            total_quantity: newTotal,
+                            price: price,
+                            tax: tax,
+                            expiry_date: expiryDate,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', itemId);
+                } else {
+                    const { data: newItem, error: newItemErr } = await client
+                        .from('inventory_items')
+                        .insert([{
+                            category: category,
+                            item_name: itemName,
+                            packages: packages,
+                            current_stock: quantity,
+                            total_quantity: quantity,
+                            price: price,
+                            tax: tax,
+                            expiry_date: expiryDate
+                        }])
+                        .select()
+                        .single();
+
+                    if (!newItemErr && newItem) {
+                        itemId = newItem.id;
+                    }
+                }
+
+                // 2. Insert into inventory_entries
+                const { data: entryData, error: entryErr } = await client
+                    .from('inventory_entries')
+                    .insert([{
+                        item_id: itemId,
+                        category: category,
+                        item_name: itemName,
+                        packages: packages,
+                        quantity: quantity,
+                        price: price,
+                        tax: tax,
+                        bill_no: billNo,
+                        date: date,
+                        expiry_date: expiryDate,
+                        vendor_name: vendorName,
+                        vendor_address: vendorAddress,
+                        vendor_pan: vendorPan
+                    }])
+                    .select()
+                    .single();
+
+                if (entryErr) {
+                    throw entryErr;
+                }
+
+                return entryData || { success: true };
+            } catch (fallbackErr) {
+                console.error('Direct fallback insert error:', fallbackErr);
+                throw new Error(result.error.message || fallbackErr.message);
+            }
         }
 
         return result.data;
