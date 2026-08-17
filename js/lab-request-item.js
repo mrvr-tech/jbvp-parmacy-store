@@ -230,7 +230,39 @@
 
             const profile = currentProfile || await auth.getCurrentProfile(user);
             const labName = profile.lab_name || profile.username || 'Lab User';
-            const labId = profile.lab_id || profile.id || user.id;
+            
+            // Resolve actual valid lab_id from public.labs table
+            let labId = profile.lab_id;
+            if (!labId) {
+                const targetLabName = profile.lab_name || user.user_metadata?.lab_name || '';
+                if (targetLabName) {
+                    const { data: labRows } = await client
+                        .from('labs')
+                        .select('id')
+                        .ilike('name', `%${targetLabName.trim()}%`)
+                        .limit(1);
+                    if (labRows && labRows.length > 0) {
+                        labId = labRows[0].id;
+                    }
+                }
+            }
+
+            if (!labId) {
+                // Fallback to first available laboratory in database
+                const { data: defaultLab } = await client
+                    .from('labs')
+                    .select('id')
+                    .order('name', { ascending: true })
+                    .limit(1);
+                if (defaultLab && defaultLab.length > 0) {
+                    labId = defaultLab[0].id;
+                }
+            }
+
+            if (!labId) {
+                throw new Error('No registered laboratory found in database. Please ask the Store Keeper to add a laboratory.');
+            }
+
             const today = new Date().toISOString().split('T')[0];
 
             // 1. Insert requisition header into lab_requests table
