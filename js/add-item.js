@@ -114,46 +114,70 @@
         const vendorAddress = (formData.vendor_address || '').trim();
         const vendorPan = (formData.vendor_pan || '').trim().toUpperCase();
 
-        // 1. Try standard p_ prefixed parameter payload
-        const payloadPrefixed = {
-            p_category: category,
-            p_item_name: itemName,
-            p_packages: packages,
-            p_quantity: quantity,
-            p_price: price,
-            p_tax: tax,
-            p_bill_no: billNo,
-            p_date: date,
-            p_expiry_date: expiryDate,
-            p_vendor_name: vendorName,
-            p_vendor_address: vendorAddress,
-            p_vendor_pan: vendorPan
+        // 1. Try canonical database signature (_ prefix with _sr_no)
+        const payloadUnderscore = {
+            _category: category,
+            _item_name: itemName,
+            _packages: packages,
+            _quantity: quantity,
+            _price: price,
+            _tax: tax,
+            _bill_no: billNo,
+            _date: date,
+            _expiry_date: expiryDate,
+            _vendor_name: vendorName,
+            _vendor_address: vendorAddress,
+            _vendor_pan: vendorPan,
+            _sr_no: null
         };
 
-        let result = await client.rpc('add_inventory_entry', payloadPrefixed);
+        let result = await client.rpc('add_inventory_entry', payloadUnderscore);
 
         if (result.error) {
-            // Check if error is due to parameter name mismatch (non-prefixed signature)
             const errMsg = (result.error.message || '').toLowerCase();
             if (errMsg.includes('parameter') || errMsg.includes('signature') || errMsg.includes('not found') || errMsg.includes('named')) {
-                console.warn('Retrying add_inventory_entry RPC with non-prefixed parameter payload...');
+                console.warn('Retrying add_inventory_entry RPC with p_ prefixed parameter payload...');
                 
-                const payloadUnprefixed = {
-                    category: category,
-                    item_name: itemName,
-                    packages: packages,
-                    quantity: quantity,
-                    price: price,
-                    tax: tax,
-                    bill_no: billNo,
-                    date: date,
-                    expiry_date: expiryDate,
-                    vendor_name: vendorName,
-                    vendor_address: vendorAddress,
-                    vendor_pan: vendorPan
+                const payloadPrefixed = {
+                    p_category: category,
+                    p_item_name: itemName,
+                    p_packages: packages,
+                    p_quantity: quantity,
+                    p_price: price,
+                    p_tax: tax,
+                    p_bill_no: billNo,
+                    p_date: date,
+                    p_expiry_date: expiryDate,
+                    p_vendor_name: vendorName,
+                    p_vendor_address: vendorAddress,
+                    p_vendor_pan: vendorPan
                 };
 
-                result = await client.rpc('add_inventory_entry', payloadUnprefixed);
+                result = await client.rpc('add_inventory_entry', payloadPrefixed);
+
+                if (result.error) {
+                    const errMsg2 = (result.error.message || '').toLowerCase();
+                    if (errMsg2.includes('parameter') || errMsg2.includes('signature') || errMsg2.includes('not found') || errMsg2.includes('named')) {
+                        console.warn('Retrying add_inventory_entry RPC with non-prefixed parameter payload...');
+                        
+                        const payloadUnprefixed = {
+                            category: category,
+                            item_name: itemName,
+                            packages: packages,
+                            quantity: quantity,
+                            price: price,
+                            tax: tax,
+                            bill_no: billNo,
+                            date: date,
+                            expiry_date: expiryDate,
+                            vendor_name: vendorName,
+                            vendor_address: vendorAddress,
+                            vendor_pan: vendorPan
+                        };
+
+                        result = await client.rpc('add_inventory_entry', payloadUnprefixed);
+                    }
+                }
             }
         }
 
