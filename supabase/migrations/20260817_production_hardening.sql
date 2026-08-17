@@ -165,21 +165,26 @@ DROP POLICY IF EXISTS "inventory_entries_admin_policy" ON public.inventory_entri
 CREATE POLICY "inventory_entries_admin_policy" ON public.inventory_entries FOR ALL TO authenticated
 USING (public.is_store_admin()) WITH CHECK (public.is_store_admin());
 
--- Lab Requests (Strict Lab Isolation)
+-- Lab Requests (Strict Lab Isolation & Admin Access)
 DROP POLICY IF EXISTS "lab_requests_store_admin_all" ON public.lab_requests;
 CREATE POLICY "lab_requests_store_admin_all" ON public.lab_requests FOR ALL TO authenticated
 USING (public.is_store_admin()) WITH CHECK (public.is_store_admin());
 
+DROP POLICY IF EXISTS "lab_requests_select_policy" ON public.lab_requests;
 DROP POLICY IF EXISTS "lab_requests_lab_select_own_lab" ON public.lab_requests;
-CREATE POLICY "lab_requests_lab_select_own_lab" ON public.lab_requests FOR SELECT TO authenticated
-USING (lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid()));
+CREATE POLICY "lab_requests_select_policy" ON public.lab_requests FOR SELECT TO authenticated
+USING (
+    public.is_store_admin()
+    OR lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid())
+    OR requested_by = auth.uid()
+);
 
 DROP POLICY IF EXISTS "lab_requests_lab_insert_own_lab" ON public.lab_requests;
 CREATE POLICY "lab_requests_lab_insert_own_lab" ON public.lab_requests FOR INSERT TO authenticated
 WITH CHECK (
-    lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid())
-    AND requested_by = auth.uid()
-    AND status = 'Pending'
+    (lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid()) OR public.is_store_admin())
+    AND (requested_by IS NULL OR requested_by = auth.uid())
+    AND (status IS NULL OR status = 'Pending')
 );
 
 -- Lab Request Line Items
@@ -187,13 +192,15 @@ DROP POLICY IF EXISTS "lab_request_items_store_admin_all" ON public.lab_request_
 CREATE POLICY "lab_request_items_store_admin_all" ON public.lab_request_items FOR ALL TO authenticated
 USING (public.is_store_admin()) WITH CHECK (public.is_store_admin());
 
+DROP POLICY IF EXISTS "lab_request_items_select_policy" ON public.lab_request_items;
 DROP POLICY IF EXISTS "lab_request_items_lab_select_own_lab" ON public.lab_request_items;
-CREATE POLICY "lab_request_items_lab_select_own_lab" ON public.lab_request_items FOR SELECT TO authenticated
+CREATE POLICY "lab_request_items_select_policy" ON public.lab_request_items FOR SELECT TO authenticated
 USING (
-    EXISTS (
+    public.is_store_admin()
+    OR EXISTS (
         SELECT 1 FROM public.lab_requests r
         WHERE r.id = lab_request_items.lab_request_id
-          AND r.lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid())
+          AND (r.lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid()) OR r.requested_by = auth.uid())
     )
 );
 
@@ -203,7 +210,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 FROM public.lab_requests r
         WHERE r.id = lab_request_items.lab_request_id
-          AND r.lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid())
+          AND (r.lab_id = (SELECT p.lab_id FROM public.profiles p WHERE p.id = auth.uid()) OR r.requested_by = auth.uid() OR public.is_store_admin())
           AND r.status = 'Pending'
     )
     AND count > 0
