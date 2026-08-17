@@ -274,16 +274,21 @@
             const result = await invokeAdminFunction('create-lab', { name: cleanName });
             return result.lab || { name: cleanName };
         } catch (edgeErr) {
-            console.warn('Edge function create-lab failed, falling back to direct table insert:', edgeErr.message);
+            console.warn('Edge function create-lab failed, attempting direct table insert:', edgeErr.message);
             const client = getClient();
-            let insertRes = await client.from('labs').insert([{ name: cleanName }]).select().single();
-            if (insertRes.error) {
-                insertRes = await client.from('labs').insert([{ lab_name: cleanName }]).select().single();
+            const { data, error } = await client
+                .from('labs')
+                .insert([{ name: cleanName }])
+                .select()
+                .single();
+
+            if (error) {
+                if (error.code === '42501' || (error.message && error.message.includes('row-level security'))) {
+                    throw new Error('Database permission error: Table "labs" requires an RLS insert policy for authenticated users. Please run the SQL setup script in Supabase.');
+                }
+                throw new Error(error.message || edgeErr.message);
             }
-            if (insertRes.error) {
-                throw new Error(insertRes.error.message || edgeErr.message);
-            }
-            return insertRes.data;
+            return data;
         }
     }
 
@@ -304,7 +309,7 @@
         if (noLabsNotice) noLabsNotice.style.display = 'none';
         select.innerHTML = '<option value="">-- Select Laboratory --</option>' +
             labs.map(lab => {
-                const name = lab.name || lab.lab_name || `Lab ${lab.id}`;
+                const name = lab.name || `Lab ${lab.id}`;
                 return `<option value="${lab.id}">${escapeHtml(name)}</option>`;
             }).join('');
     }
@@ -330,7 +335,7 @@
             }
         } catch (err) {
             console.error('Quick Add Lab error:', err);
-            showAlert('error', 'Failed to add laboratory: ' + (err.message || err));
+            showAlert('error', err.message || 'Failed to add laboratory.');
         }
     }
 
@@ -367,7 +372,7 @@
         try {
             const client = getClient();
             const existingNames = new Set(
-                (cachedLabs || []).map(l => (l.name || l.lab_name || '').toLowerCase().trim())
+                (cachedLabs || []).map(l => (l.name || '').toLowerCase().trim())
             );
 
             const toInsert = standardNames
@@ -380,15 +385,13 @@
             }
 
             // Batch insert directly into labs table
-            let insertRes = await client.from('labs').insert(toInsert).select();
-            if (insertRes.error) {
-                // Fallback to lab_name column
-                const toInsertFallback = toInsert.map(i => ({ lab_name: i.name }));
-                insertRes = await client.from('labs').insert(toInsertFallback).select();
-            }
+            const { error: insertErr } = await client.from('labs').insert(toInsert);
 
-            if (insertRes.error) {
-                throw insertRes.error;
+            if (insertErr) {
+                if (insertErr.code === '42501' || (insertErr.message && insertErr.message.includes('row-level security'))) {
+                    throw new Error('Database permission error: Table "labs" requires an RLS insert policy for authenticated users. Please run the SQL setup script in Supabase.');
+                }
+                throw insertErr;
             }
 
             showAlert('success', `✅ Successfully initialized ${toInsert.length} college laboratories!`);
@@ -396,7 +399,7 @@
 
         } catch (err) {
             console.error('Seed Standard Labs error:', err);
-            showAlert('error', 'Failed to seed laboratories: ' + (err.message || err));
+            showAlert('error', err.message || 'Failed to seed laboratories.');
         }
     }
 
