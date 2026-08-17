@@ -152,9 +152,10 @@
                     labMap.set(l.id, name);
                 });
 
+                const defaultAdminEmail = (window.APP_CONFIG && window.APP_CONFIG.ADMIN_EMAIL) || 'rathodstudents@gmail.com';
                 users = (profilesRes.data || []).map(p => ({
                     id: p.id,
-                    email: p.role === 'store' ? 'admin@pharmacy.com' : (p.display_name ? `${p.display_name.toLowerCase().replace(/\s+/g, '')}@pharmacy.com` : '-'),
+                    email: p.role === 'store' ? defaultAdminEmail : (p.display_name ? `${p.display_name.toLowerCase().replace(/\s+/g, '')}@pharmacy.com` : '-'),
                     display_name: p.display_name || (p.role === 'store' ? 'Store Keeper' : 'Lab User'),
                     role: p.role,
                     lab_id: p.lab_id,

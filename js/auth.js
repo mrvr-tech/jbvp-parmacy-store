@@ -38,8 +38,12 @@
         if (trimmed.includes('@')) {
             return trimmed;
         }
+        const lower = trimmed.toLowerCase();
+        if (lower === 'admin') {
+            return (config && config.ADMIN_EMAIL) || 'rathodstudents@gmail.com';
+        }
         const domain = (config && config.DEFAULT_EMAIL_DOMAIN) || 'pharmacy.com';
-        return `${trimmed.toLowerCase()}@${domain}`;
+        return `${lower}@${domain}`;
     }
 
     /**
@@ -124,8 +128,10 @@
         }
 
         // Fallback: Infer role from metadata or email if profile table is not populated yet
-        const email = user.email || '';
-        const role = user.user_metadata?.role || (email.startsWith('admin') ? 'store' : 'lab');
+        const email = (user.email || '').toLowerCase();
+        const adminEmail = ((config && config.ADMIN_EMAIL) || 'rathodstudents@gmail.com').toLowerCase();
+        const isStoreAdmin = email === adminEmail || email.startsWith('admin');
+        const role = user.user_metadata?.role || (isStoreAdmin ? 'store' : 'lab');
         const labName = user.user_metadata?.lab_name || (role === 'lab' ? `Lab ${email.replace(/[^0-9]/g, '') || '1'}` : null);
         
         const fallbackProfile = {

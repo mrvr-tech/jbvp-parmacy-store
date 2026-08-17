@@ -119,7 +119,7 @@ npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY="<your-service-role-key>"
 
 After deploying the frontend and Edge Function, complete these production verification steps:
 
-- [ ] **1. Store/Admin Login**: Log in as Store Keeper (`admin@pharmacy.com` or `admin`). Confirm redirect to `store/dashboard.html` with display name in navigation.
+- [ ] **1. Store/Admin Login**: Log in as Store Keeper (`rathodstudents@gmail.com` or `admin`). Confirm redirect to `store/dashboard.html` with display name in navigation.
 - [ ] **2. Lab Login**: Log in as a Lab User (e.g. `lab1@pharmacy.com` or `lab1`). Confirm redirect to `lab/dashboard.html`.
 - [ ] **3. Access Control**: Ensure Lab users cannot navigate to `store/dashboard.html` or any `/store/*` URL.
 - [ ] **4. Inventory Entry**: In `store/add-item.html`, submit a new item. Verify it appears on `store/inventory.html` and `store/dashboard.html`.
