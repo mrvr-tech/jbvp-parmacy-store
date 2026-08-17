@@ -86,235 +86,123 @@
     }
 
     /**
-     * Load pending requests from v_pending_requests
+     * Robust fetcher that queries lab_requests, labs, items, and line items independently
+     * Prevents PostgREST nested join grouping failures (42803)
      */
-    async function fetchPendingRequests() {
+    async function fetchAndMapRequests(statusFilter) {
         const client = getClient();
-        
-        // 1. Try v_pending_requests view
         try {
-            const { data, error } = await client
-                .from('v_pending_requests')
-                .select('*')
-                .order('date', { ascending: false });
-
-            if (!error && Array.isArray(data)) {
-                return data;
+            // 1. Fetch requests with status filter
+            let reqQuery = client.from('lab_requests').select('*').order('created_at', { ascending: false });
+            if (statusFilter) {
+                reqQuery = reqQuery.ilike('status', `%${statusFilter}%`);
             }
-        } catch (e) {
-            console.warn('v_pending_requests view notice:', e);
-        }
+            const { data: requests, error: reqErr } = await reqQuery;
+            if (reqErr || !Array.isArray(requests) || requests.length === 0) {
+                return [];
+            }
 
-        // 2. Fallback: Query lab_requests joined with labs, profiles, lab_request_items & inventory_items
-        try {
-            const { data, error } = await client
-                .from('lab_requests')
-                .select(`
-                    id,
-                    created_at,
-                    status,
-                    lab_id,
-                    labs ( name ),
-                    profiles ( display_name ),
-                    lab_request_items (
-                        id,
-                        inventory_item_id,
-                        count,
-                        inventory_items (
-                            item_name,
-                            category,
-                            packages,
-                            current_stock
-                        )
-                    )
-                `)
-                .ilike('status', '%pending%')
-                .order('created_at', { ascending: false });
+            // 2. Fetch labs & inventory items maps in parallel
+            const [labsRes, itemsRes, linesRes] = await Promise.all([
+                client.from('labs').select('id, name'),
+                client.from('inventory_items').select('*'),
+                client.from('lab_request_items').select('*')
+            ]);
 
-            if (!error && Array.isArray(data)) {
-                const flattened = [];
-                data.forEach(r => {
-                    const labName = r.labs?.name || 'Laboratory';
-                    const requester = r.profiles?.display_name || 'Lab In-Charge';
-                    const items = (r.lab_request_items && r.lab_request_items.length > 0) ? r.lab_request_items : [{}];
-                    
-                    items.forEach(it => {
-                        const inv = it.inventory_items || {};
-                        flattened.push({
+            const labMap = {};
+            if (labsRes.data && Array.isArray(labsRes.data)) {
+                labsRes.data.forEach(l => { labMap[l.id] = l.name; });
+            }
+
+            const itemMap = {};
+            if (itemsRes.data && Array.isArray(itemsRes.data)) {
+                itemsRes.data.forEach(i => { itemMap[i.id] = i; });
+            }
+
+            const linesByReqId = {};
+            if (linesRes.data && Array.isArray(linesRes.data)) {
+                linesRes.data.forEach(li => {
+                    if (!linesByReqId[li.lab_request_id]) linesByReqId[li.lab_request_id] = [];
+                    linesByReqId[li.lab_request_id].push(li);
+                });
+            }
+
+            // 3. Assemble unified display rows
+            const displayRows = [];
+            requests.forEach(r => {
+                const labName = labMap[r.lab_id] || 'Unknown Lab';
+                const lItems = linesByReqId[r.id] || [];
+
+                if (lItems.length > 0) {
+                    lItems.forEach(li => {
+                        const inv = itemMap[li.inventory_item_id] || {};
+                        displayRows.push({
                             id: r.id,
+                            line_id: li.id,
                             date: r.created_at,
+                            request_date: r.created_at,
+                            approval_date: r.approved_at || r.reviewed_at || r.created_at,
+                            rejection_date: r.rejected_at || r.reviewed_at || r.created_at,
+                            lab_id: r.lab_id,
                             lab_name: labName,
-                            requested_by: requester,
-                            item_id: it.inventory_item_id || r.item_id,
-                            item_name: inv.item_name || r.item_name || 'Store Item',
-                            category: inv.category || r.category || 'General',
-                            packages: inv.packages || r.packages || '',
-                            available_stock: inv.current_stock !== undefined ? inv.current_stock : 0,
-                            quantity: it.count || r.quantity || 1,
+                            requested_by: 'Lab User',
+                            item_id: li.inventory_item_id,
+                            item_name: inv.item_name || 'Store Item',
+                            category: inv.category || 'General',
+                            packages: inv.packages || '',
+                            available_stock: inv.current_quantity || inv.current_stock || 0,
+                            quantity: li.count || 1,
                             status: r.status || 'Pending'
                         });
                     });
-                });
-                return flattened;
-            }
-        } catch (err) {
-            console.warn('Joined pending requests fallback notice:', err);
-        }
+                } else {
+                    const inv = itemMap[r.item_id] || {};
+                    displayRows.push({
+                        id: r.id,
+                        date: r.created_at,
+                        request_date: r.created_at,
+                        approval_date: r.approved_at || r.reviewed_at || r.created_at,
+                        rejection_date: r.rejected_at || r.reviewed_at || r.created_at,
+                        lab_id: r.lab_id,
+                        lab_name: labName,
+                        requested_by: 'Lab User',
+                        item_id: r.item_id,
+                        item_name: inv.item_name || r.item_name || 'Requisition Item',
+                        category: inv.category || 'General',
+                        packages: inv.packages || '',
+                        available_stock: inv.current_quantity || inv.current_stock || 0,
+                        quantity: r.quantity || 1,
+                        status: r.status || 'Pending'
+                    });
+                }
+            });
 
-        return [];
+            return displayRows;
+        } catch (err) {
+            console.error(`Error in fetchAndMapRequests (${statusFilter}):`, err);
+            return [];
+        }
     }
 
     /**
-     * Load approved requests from v_approved_requests
+     * Load pending requests
+     */
+    async function fetchPendingRequests() {
+        return await fetchAndMapRequests('pending');
+    }
+
+    /**
+     * Load approved requests
      */
     async function fetchApprovedRequests() {
-        const client = getClient();
-
-        // 1. Try v_approved_requests view
-        try {
-            const { data, error } = await client
-                .from('v_approved_requests')
-                .select('*')
-                .order('date', { ascending: false });
-
-            if (!error && Array.isArray(data)) {
-                return data;
-            }
-        } catch (e) {
-            console.warn('v_approved_requests view notice:', e);
-        }
-
-        // 2. Fallback: Query lab_requests joined with labs, profiles, lab_request_items & inventory_items
-        try {
-            const { data, error } = await client
-                .from('lab_requests')
-                .select(`
-                    id,
-                    created_at,
-                    approved_at,
-                    reviewed_at,
-                    status,
-                    lab_id,
-                    labs ( name ),
-                    profiles ( display_name ),
-                    lab_request_items (
-                        id,
-                        inventory_item_id,
-                        count,
-                        inventory_items (
-                            item_name,
-                            category
-                        )
-                    )
-                `)
-                .ilike('status', '%approved%')
-                .order('created_at', { ascending: false });
-
-            if (!error && Array.isArray(data)) {
-                const flattened = [];
-                data.forEach(r => {
-                    const labName = r.labs?.name || 'Laboratory';
-                    const requester = r.profiles?.display_name || 'Lab In-Charge';
-                    const items = (r.lab_request_items && r.lab_request_items.length > 0) ? r.lab_request_items : [{}];
-                    
-                    items.forEach(it => {
-                        const inv = it.inventory_items || {};
-                        flattened.push({
-                            id: r.id,
-                            request_date: r.created_at,
-                            approval_date: r.approved_at || r.reviewed_at || r.created_at,
-                            lab_name: labName,
-                            requested_by: requester,
-                            item_name: inv.item_name || r.item_name || 'Store Item',
-                            category: inv.category || r.category || 'General',
-                            quantity: it.count || r.quantity || 1,
-                            status: r.status || 'Approved'
-                        });
-                    });
-                });
-                return flattened;
-            }
-        } catch (err) {
-            console.warn('Joined approved requests fallback notice:', err);
-        }
-
-        return [];
+        return await fetchAndMapRequests('approved');
     }
 
     /**
-     * Load rejected requests from v_rejected_requests
+     * Load rejected requests
      */
     async function fetchRejectedRequests() {
-        const client = getClient();
-
-        // 1. Try v_rejected_requests view
-        try {
-            const { data, error } = await client
-                .from('v_rejected_requests')
-                .select('*')
-                .order('date', { ascending: false });
-
-            if (!error && Array.isArray(data)) {
-                return data;
-            }
-        } catch (e) {
-            console.warn('v_rejected_requests view notice:', e);
-        }
-
-        // 2. Fallback: Query lab_requests joined with labs, profiles, lab_request_items & inventory_items
-        try {
-            const { data, error } = await client
-                .from('lab_requests')
-                .select(`
-                    id,
-                    created_at,
-                    reviewed_at,
-                    status,
-                    lab_id,
-                    labs ( name ),
-                    profiles ( display_name ),
-                    lab_request_items (
-                        id,
-                        inventory_item_id,
-                        count,
-                        inventory_items (
-                            item_name,
-                            category
-                        )
-                    )
-                `)
-                .ilike('status', '%rejected%')
-                .order('created_at', { ascending: false });
-
-            if (!error && Array.isArray(data)) {
-                const flattened = [];
-                data.forEach(r => {
-                    const labName = r.labs?.name || 'Laboratory';
-                    const requester = r.profiles?.display_name || 'Lab In-Charge';
-                    const items = (r.lab_request_items && r.lab_request_items.length > 0) ? r.lab_request_items : [{}];
-                    
-                    items.forEach(it => {
-                        const inv = it.inventory_items || {};
-                        flattened.push({
-                            id: r.id,
-                            request_date: r.created_at,
-                            rejection_date: r.reviewed_at || r.created_at,
-                            lab_name: labName,
-                            requested_by: requester,
-                            item_name: inv.item_name || r.item_name || 'Store Item',
-                            category: inv.category || r.category || 'General',
-                            quantity: it.count || r.quantity || 1,
-                            status: r.status || 'Rejected'
-                        });
-                    });
-                });
-                return flattened;
-            }
-        } catch (err) {
-            console.warn('Joined rejected requests fallback notice:', err);
-        }
-
-        return [];
+        return await fetchAndMapRequests('rejected');
     }
 
     /**

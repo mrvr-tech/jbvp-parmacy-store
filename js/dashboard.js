@@ -211,22 +211,17 @@
 
         // Query 4: Pending Lab Requests
         try {
-            // Try v_pending_requests view
-            const { data: pendingData, error: pendingErr } = await client
-                .from('v_pending_requests')
-                .select('*');
+            const { data: reqData, error: reqErr } = await client
+                .from('lab_requests')
+                .select('id, status')
+                .ilike('status', '%pending%');
 
-            if (!pendingErr && Array.isArray(pendingData)) {
-                pendingRequestsCount = pendingData.length;
+            if (!reqErr && Array.isArray(reqData)) {
+                pendingRequestsCount = reqData.length;
             } else {
-                // Fallback to lab_requests table
-                const { data: reqData, error: reqErr } = await client
-                    .from('lab_requests')
-                    .select('*')
-                    .ilike('status', '%pending%');
-
-                if (!reqErr && Array.isArray(reqData)) {
-                    pendingRequestsCount = reqData.length;
+                const { data: pendingData } = await client.from('v_pending_requests').select('id');
+                if (Array.isArray(pendingData)) {
+                    pendingRequestsCount = pendingData.length;
                 }
             }
         } catch (e) {
