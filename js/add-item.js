@@ -95,13 +95,25 @@
     }
 
     /**
+     * Format category to exact PostgreSQL inventory_category_enum casing
+     */
+    function formatCategoryForEnum(cat) {
+        if (!cat) return 'Other';
+        const lower = cat.trim().toLowerCase();
+        if (lower === 'chemicals' || lower === 'chemical') return 'Chemicals';
+        if (lower === 'glassware' || lower === 'glass') return 'Glassware';
+        if (lower === 'instruments' || lower === 'instrument' || lower === 'equipment' || lower === 'equipments' || lower === 'computer') return 'Instruments';
+        return 'Other';
+    }
+
+    /**
      * Call public.add_inventory_entry RPC on Supabase
      * Supports both p_ prefixed parameter signatures and standard naming.
      */
     async function submitInventoryEntry(formData) {
         const client = getClient();
 
-        const category = (formData.category || '').trim().toLowerCase();
+        const category = formatCategoryForEnum(formData.category);
         const itemName = (formData.item_name || '').trim();
         const packages = (formData.packages && formData.packages.trim()) ? formData.packages.trim() : null;
         const quantity = parseInt(formData.quantity, 10);
