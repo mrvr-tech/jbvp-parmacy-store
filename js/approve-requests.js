@@ -368,16 +368,15 @@
     async function executeApproveRpc(requestId) {
         const client = getClient();
 
-        // 1. Try standard _request_id signature
-        let result = await client.rpc('approve_lab_request', { _request_id: requestId });
+        // 1. Try canonical p_request_id signature
+        let result = await client.rpc('approve_lab_request', { p_request_id: requestId });
 
         if (result.error) {
             const errMsg = (result.error.message || '').toLowerCase();
-            if (errMsg.includes('parameter') || errMsg.includes('signature') || errMsg.includes('named')) {
-                // Try p_request_id
-                result = await client.rpc('approve_lab_request', { p_request_id: requestId });
+            if (errMsg.includes('parameter') || errMsg.includes('signature') || errMsg.includes('named') || errMsg.includes('not found')) {
+                // Try fallback parameter names
+                result = await client.rpc('approve_lab_request', { _request_id: requestId });
                 if (result.error) {
-                    // Try request_id
                     result = await client.rpc('approve_lab_request', { request_id: requestId });
                 }
             }
@@ -393,19 +392,21 @@
     /**
      * Call public.reject_lab_request RPC
      */
-    async function executeRejectRpc(requestId) {
+    async function executeRejectRpc(requestId, notes = null) {
         const client = getClient();
 
-        // 1. Try standard _request_id signature
-        let result = await client.rpc('reject_lab_request', { _request_id: requestId });
+        // 1. Try canonical p_request_id signature with optional p_notes
+        let result = await client.rpc('reject_lab_request', { 
+            p_request_id: requestId,
+            p_notes: notes 
+        });
 
         if (result.error) {
             const errMsg = (result.error.message || '').toLowerCase();
-            if (errMsg.includes('parameter') || errMsg.includes('signature') || errMsg.includes('named')) {
-                // Try p_request_id
-                result = await client.rpc('reject_lab_request', { p_request_id: requestId });
+            if (errMsg.includes('parameter') || errMsg.includes('signature') || errMsg.includes('named') || errMsg.includes('not found')) {
+                // Try fallback parameter names
+                result = await client.rpc('reject_lab_request', { _request_id: requestId });
                 if (result.error) {
-                    // Try request_id
                     result = await client.rpc('reject_lab_request', { request_id: requestId });
                 }
             }
