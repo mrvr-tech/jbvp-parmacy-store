@@ -573,7 +573,7 @@
             <body>
                 <div class="header">
                     <h1>Vidya Niketan College of Pharmacy</h1>
-                    <p>Lakhwadi, Pune | Pharmacy Store Management System</p>
+                    <p>Lakhewadi, Pune | Pharmacy Store Management System</p>
                 </div>
                 <div class="report-title">
                     <h2>${escapeHtml(reportTitle)}</h2>
